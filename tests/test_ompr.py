@@ -3,7 +3,7 @@ import time
 import unittest
 from typing import Union
 
-from ompr.ompr import OMPRunner, RunningWorker, OMPRException
+from ompr import OMPRunner, RunningWorker, OMPRException
 
 
 # basic RunningWorker with random exception
