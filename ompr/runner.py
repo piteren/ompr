@@ -25,7 +25,7 @@ class RunningWorker(ABC):
 # Object based Multi-Processing Runner
 class OMPRunner:
 
-        # Internal Processor of OMPRunner
+    # Internal Processor of OMPRunner
     class InternalProcessor(ExSubprocess):
 
         # RWW wraps RunningWorker with Exception Managed Subprocess
