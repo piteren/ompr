@@ -10,7 +10,9 @@ from pypaq.mpython.devices import DevicesPypaq, get_devices
 from pypaq.mpython.mptools import QMessage, Que, ExSubprocess
 import signal
 import time
-from typing import Any, List, Dict, Optional, Union, Callable
+from typing import Any, List, Dict, Optional, Union
+
+from ompr.helpers import OMPRException
 
 
 # Worker for tasks, to be implemented - processes task given with kwargs and returns result
@@ -19,12 +21,6 @@ class RunningWorker(ABC):
     @abstractmethod # processing method to be implemented
     def process(self, **kwargs) -> Any: pass
 
-# OMPR Exception, also returned when task raises any exception while processed by RW
-class OMPRException(Exception):
-
-    def __init__(self, *args, task:Optional[Dict]=None):
-        self.task = task
-        Exception.__init__(self, *args)
 
 # Object based Multi-Processing Runner
 class OMPRunner:
@@ -496,25 +492,3 @@ class OMPRunner:
             self.logger.warning(f'{self.omp_name} exits while not all results were returned to user!')
         self._internal_processor.exit()
         self.logger.info(f'> {self.omp_name}: internal processor stopped, {self.omp_name} exits.')
-
-# function to simple process tasks with function using OMPR
-def simple_process(
-        tasks: List[Dict],      # tasks to process
-        function: Callable,     # processing function
-        num_workers: int=   4,
-        **kwargs,
-) -> List[Any]:
-
-    class SimpleRW(RunningWorker):
-        def process(self, **kwargs) -> Any:
-            return function(**kwargs)
-
-    ompr = OMPRunner(
-        rw_class=   SimpleRW,
-        devices=    [None]*num_workers,
-        **kwargs)
-
-    ompr.process(tasks)
-    results = ompr.get_all_results()
-    ompr.exit()
-    return results
