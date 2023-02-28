@@ -2,9 +2,12 @@
 
 ------------
 
-**OMPR** is a simple framework that enables processing tasks in parallel, with subprocesses.
-Each subprocess may use any object that is build while forking the process. This object will be initialized once
-and used for processing all task that will be sent to given subprocess with queue.
+**OMPR** is a simple framework that enables processing tasks with subprocesses.
+Each subprocess will init an object of given class while forking the process. This object will be responsible for processing all task that will be sent to given subprocess with a queue.
+**OMPR** may be used for parallel processing of any type of tasks, but *object* concept is extremely useful for processing small tasks with (big) objects, that need to be preloaded and time of task processing is relatively short
+comparing to time of object init. Example of such task is sentence parsing using SpaCy model.
+
+
 
 To run **OMPR** you will need to:
 - Define a class that inherits from a **RunningWorker**. Object of that class will be built in each subprocess.
@@ -18,13 +21,8 @@ its result. Task parameters and arguments are given with kwargs (dict) and resul
 any time. This method is non-blocking. It just gets the tasks and sends for processing immediately.
 
 OMPRunner processes given tasks with InternalProcessor (IP) that guarantees non-blocking interface of OMPRunner.
-Tasks are processed by RunningWorker class objects that are managed by IP (and additionally wrapped by RWW).
-  
 Results may be received with two get methods (single or all) and by default will be ordered with tasks order.
-    
 Finally, OMPRunner needs to be closed with exit().
-
-You can check /tests for some run examples.
 
 ------------
 
@@ -39,5 +37,9 @@ Each policy has job specific pros and cons. By default, second is activated with
     - memory kept by the RunningWorker may grow with the time (while processing many tasks)
 
 ------------
+
+This package also delivers `simple_process()` function for simple tasks processing, when *object* is not needed.
+
+You can check `/tests` for some run examples.
 
 If you got any questions or need any support, please contact me:  me@piotniewinski.com
