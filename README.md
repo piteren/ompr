@@ -1,37 +1,39 @@
 ## OMPR - Object based Multi-Processing Runner
 
+**OMPR** is a simple tool for processing tasks with subprocesses.
+
 ------------
 
-**OMPR** is a simple framework that enables processing tasks with subprocesses.
-Each subprocess will init an object of given class while forking the process. This object will be responsible for processing all task that will be sent to given subprocess with a queue.
-**OMPR** may be used for parallel processing of any type of tasks, but *object* concept is extremely useful for processing small tasks with (big) objects, that need to be preloaded and time of task processing is relatively short
-comparing to time of object init. Example of such task is sentence parsing using SpaCy model.
-
-
+**OMPR** may be used for parallel processing of any type of tasks.
+Usually a task means a function with given set of parameters. This function needs to be run (processed) to get
+a return value - result. But there are also scenarios when for processing of given tasks an (big) object is needed.
+The problem arises when time of object init is much higher than time taken by pure processing.
+Example of such task is sentence parsing using SpaCy model.
+**OMPR** allows to init such an object once in each subprocess while forking.
 
 To run **OMPR** you will need to:
-- Define a class that inherits from a **RunningWorker**. Object of that class will be built in each subprocess.
-RunningWorker must implement process(**kwargs) method that is responsible for processing given task and returning
+- Define a class that inherits from `RunningWorker`. Object of that class will be built in each subprocess.
+`RunningWorker` must implement `process(**kwargs)` method that is responsible for processing given task and returning
 its result. Task parameters and arguments are given with kwargs (dict) and result may be Any type.
-- Build an **OMPRunner** object, give while init:
-  - RunningWorker type
+- Build `OMPRunner`, give while init:
+  - `RunningWorker` type
   - devices (GPU / CPU) to use
-  - optionally define some advanced parameters of OMPRunner
-- Give to OMPRunner tasks as a list of dicts with OMPRunner.process() method. You may give any number of tasks at
+  - optionally define some advanced parameters of `OMPRunner`
+- Give to `OMPRunner` tasks as a list of dicts with `process()` method. You may give any number of tasks at
 any time. This method is non-blocking. It just gets the tasks and sends for processing immediately.
 
-OMPRunner processes given tasks with InternalProcessor (IP) that guarantees non-blocking interface of OMPRunner.
+`OMPRunner` processes given tasks with `InternalProcessor` (IP) that guarantees non-blocking interface of `OMPRunner`.
 Results may be received with two get methods (single or all) and by default will be ordered with tasks order.
-Finally, OMPRunner needs to be closed with exit().
+Finally, `OMPRunner` needs to be closed with `exit()`.
 
 ------------
 
-There are two policies of RunningWorker lifecycle:
+There are two policies (managed by OMPR, controlled with `rw_lifetime` parameter) of `RunningWorker` lifecycle:
     
     1st - RunningWorker is closed after processing some task (1..N)
     2nd - RunningWorker is closed only when crashes or with the OMP exit
 
-Each policy has job specific pros and cons. By default, second is activated with 'rw_lifetime=None'.
+Each policy has job specific pros and cons. By default, second is activated with `rw_lifetime=None`.
     
     + all RunningWorkers are initialized once while OMP inits - it saves a time
     - memory kept by the RunningWorker may grow with the time (while processing many tasks)
