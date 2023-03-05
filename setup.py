@@ -9,7 +9,7 @@ def get_requirements():
 
 setup(
     name=               'ompr',
-    version=            'v1.0.0',
+    version=            'v1.0.1',
     url=                'https://github.com/piteren/ompr.git',
     author=             'Piotr Niewinski',
     author_email=       'pioniewinski@gmail.com',
