@@ -20,6 +20,7 @@ class Test_simple(unittest.TestCase):
         res = simple_process(
             tasks=          tasks,
             function=       func,
-            num_workers=    10)
+            loglevel=       20,
+            num_workers=    4)
         print(len(res))
         self.assertTrue(len(res)==num_tasks)

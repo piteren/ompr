@@ -14,8 +14,8 @@ def simple_process(
 ) -> List[Any]:
 
     class SimpleRW(RunningWorker):
-        def process(self, **kwargs) -> Any:
-            return function(**kwargs)
+        def process(self, **kw) -> Any:
+            return function(**kw)
 
     ompr = OMPRunner(
         rw_class=   SimpleRW,
