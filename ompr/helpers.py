@@ -1,5 +1,6 @@
 from typing import Optional, Dict
 
+
 # OMPR Exception, also returned when task raises any exception while processed by RW
 class OMPRException(Exception):
 
