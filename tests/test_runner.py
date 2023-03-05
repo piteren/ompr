@@ -5,17 +5,19 @@ from typing import Union
 
 from ompr.runner import OMPRunner, RunningWorker, OMPRException
 
+TESTS_LOGLEVEL = 20
+
 
 # basic RunningWorker with random exception
 class BRW(RunningWorker):
     def process(
             self,
-            id: int,
+            ix: int,
             sec: Union[float,int],
             exception_prob: float=  0.0) -> object:
         time.sleep(sec)
         if random.random() < exception_prob: raise Exception('randomly crashed')
-        return f'{id}_{sec}'
+        return f'{ix}_{sec}'
 
 
 class TestOMPR(unittest.TestCase):
@@ -31,12 +33,12 @@ class TestOMPR(unittest.TestCase):
             rw_class=       BRW,
             devices=        [None] * workers,
             report_delay=   2,
-            #loglevel=      10,
-        )
+            loglevel=       TESTS_LOGLEVEL)
+
         tasks = [{
-            'id':   id,
+            'ix':   ix,
             'sec':  min_time + random.random() * (max_time-min_time)}
-            for id in range(n_tasks)]
+            for ix in range(n_tasks)]
 
         ompr.process(tasks)
         results = ompr.get_all_results()
@@ -63,12 +65,12 @@ class TestOMPR(unittest.TestCase):
             rw_class=       BRW,
             devices=        [None] * workers,
             report_delay=   2,
-            #loglevel=       10,
-        )
+            loglevel=       TESTS_LOGLEVEL)
+
         tasks = [{
-            'id':   id,
+            'ix':   ix,
             'sec':  min_time + random.random() * (max_time-min_time)}
-            for id in range(n_tasks)]
+            for ix in range(n_tasks)]
 
         ompr.process(tasks)
         results = []
@@ -106,12 +108,12 @@ class TestOMPR(unittest.TestCase):
             devices=            [None] * workers,
             ordered_results=    False,
             report_delay=       2,
-            #loglevel=           10,
-        )
+            loglevel=           TESTS_LOGLEVEL)
+
         tasks = [{
-            'id':   id,
+            'ix':   ix,
             'sec':  min_time + random.random() * (max_time-min_time)}
-            for id in range(n_tasks)]
+            for ix in range(n_tasks)]
 
         ompr.process(tasks)
         results = []
@@ -143,13 +145,12 @@ class TestOMPR(unittest.TestCase):
             rw_lifetime=    process_lifetime,
             devices=        [None] * workers,
             report_delay=   2,
-            #loglevel=       10,
-        )
+            loglevel=       TESTS_LOGLEVEL)
 
         tasks = [{
-            'id':   id,
+            'ix':   ix,
             'sec':  min_time + random.random() * (max_time-min_time)}
-            for id in range(n_tasks)]
+            for ix in range(n_tasks)]
 
         print(f'tasks: ({len(tasks)}) {tasks}')
         ompr.process(tasks)
@@ -160,9 +161,9 @@ class TestOMPR(unittest.TestCase):
 
         # additional 30 tasks
         tasks = [{
-            'id':   id,
+            'ix':   ix,
             'sec':  min_time + random.random() * (max_time-min_time)}
-            for id in range(30)]
+            for ix in range(30)]
 
         print(f'tasks: ({len(tasks)}) {tasks}')
         ompr.process(tasks)
@@ -172,8 +173,6 @@ class TestOMPR(unittest.TestCase):
         self.assertEqual(len(tasks), len(results))
 
         ompr.exit()
-
-        # OMPRunner example with process lifetime and exceptions
 
     # exceptions
     def test_OMPR_exceptions(self):
@@ -188,14 +187,13 @@ class TestOMPR(unittest.TestCase):
             rw_class=       BRW,
             devices=        [None] * workers,
             report_delay=   2,
-            #loglevel=       10,
-        )
+            loglevel=       TESTS_LOGLEVEL)
 
         tasks = [{
-            'id':               id,
+            'ix':               ix,
             'sec':              min_time + random.random() * (max_time-min_time),
             'exception_prob':   exception_prob}
-            for id in range(n_tasks)]
+            for ix in range(n_tasks)]
 
         print(f'tasks: ({len(tasks)}) {tasks}')
         ompr.process(tasks)
@@ -207,9 +205,9 @@ class TestOMPR(unittest.TestCase):
 
         # additional 30 tasks
         tasks = [{
-            'id':   id,
+            'ix':   ix,
             'sec':  min_time + random.random() * (max_time-min_time)}
-            for id in range(30)]
+            for ix in range(30)]
 
         print(f'tasks: ({len(tasks)}) {tasks}')
         ompr.process(tasks)
@@ -235,13 +233,12 @@ class TestOMPR(unittest.TestCase):
             devices=        [None] * workers,
             task_timeout=   task_timeout,
             report_delay=   2,
-            #loglevel=       10,
-        )
+            loglevel=       TESTS_LOGLEVEL)
 
         tasks = [{
-            'id':   id,
+            'ix':   ix,
             'sec':  min_time + random.random() * (max_time-min_time)}
-            for id in range(n_tasks)]
+            for ix in range(n_tasks)]
 
         print(f'tasks: ({len(tasks)}) {tasks}')
         ompr.process(tasks)
@@ -268,14 +265,13 @@ class TestOMPR(unittest.TestCase):
             devices=        [None] * workers,
             task_timeout=   task_timeout,
             report_delay=   2,
-            #loglevel=       10,
-        )
+            loglevel=       TESTS_LOGLEVEL)
 
         tasks = [{
-            'id':               id,
+            'ix':               ix,
             'sec':              min_time + random.random() * (max_time-min_time),
             'exception_prob':   exception_prob}
-            for id in range(n_tasks)]
+            for ix in range(n_tasks)]
 
         print(f'tasks: ({len(tasks)}) {tasks}')
         ompr.process(tasks)
@@ -300,15 +296,14 @@ class TestOMPR(unittest.TestCase):
             task_timeout=       timeout,
             log_RWW_exception=  False,
             report_delay=       2,
-            #loglevel=           10,
-        )
+            loglevel=           TESTS_LOGLEVEL)
 
         tasks = [{
-            'id':               id,
+            'ix':               ix,
             'sec':              min_time + random.random() * (max_time-min_time),
             'exception_prob':   exception_prob,
         }
-            for id in range(n_tasks)]
+            for ix in range(n_tasks)]
 
         print(f'tasks: ({len(tasks)})')
         ompr.process(tasks)
@@ -325,19 +320,18 @@ class TestOMPR(unittest.TestCase):
 
         # Fast RunningWorker
         class FRW(RunningWorker):
-            def process(self, id: int) -> int:
-                return id
+            def process(self, ix: int) -> int:
+                return ix
 
         n_tasks =           100000
 
         ompr = OMPRunner(
-            rw_class=           FRW,
-            devices=            'all',
-            report_delay=       2,
-            #loglevel=           10,
-        )
+            rw_class=       FRW,
+            devices=        'all',
+            report_delay=   2,
+            loglevel=       TESTS_LOGLEVEL)
 
-        tasks = [{'id':id} for id in range(n_tasks)]
+        tasks = [{'ix':ix} for ix in range(n_tasks)]
 
         print(f'tasks: ({len(tasks)})')
         ompr.process(tasks)
@@ -378,8 +372,7 @@ class TestOMPR(unittest.TestCase):
             task_timeout=       timeout,
             log_RWW_exception=  False,
             report_delay=       2,
-            #loglevel=           10,
-        )
+            loglevel=           TESTS_LOGLEVEL)
 
         tasks = [{
             's':                list('abcdefghijklmnoprstuvwxyz1234567890'),
