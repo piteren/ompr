@@ -26,8 +26,10 @@ class TestOMPR(unittest.TestCase):
 
         n_tasks =   100
         workers =   10
-        min_time =  0.5
-        max_time =  1.7
+        min_time =  1.1
+        max_time =  1.9
+
+        expected_run_time = (max_time + min_time) / 2 * n_tasks / workers
 
         ompr = OMPRunner(
             rw_class=       BRW,
@@ -40,13 +42,57 @@ class TestOMPR(unittest.TestCase):
             'sec':  min_time + random.random() * (max_time-min_time)}
             for ix in range(n_tasks)]
 
+        s_time = time.time()
+
         ompr.process(tasks)
         results = ompr.get_all_results()
 
-        print(f'({len(results)}) {results}')
+        run_time = time.time()-s_time
+        print(f'done, expected run time: {expected_run_time:.1f}s')
+        print(f'run time: {run_time:.1f}s ({len(results)}) {results}')
 
         self.assertTrue(isinstance(results[0], str))
         self.assertEqual(len(tasks), len(results))
+        self.assertTrue(run_time < expected_run_time * 2)
+
+        results = ompr.get_all_results()
+        self.assertTrue(results == [])
+
+        ompr.exit()
+
+    def test_OMPR_put_one_by_one(self):
+
+        n_tasks =   100
+        workers =   10
+        min_time =  1.1
+        max_time =  1.9
+
+        expected_run_time = (max_time + min_time) / 2 * n_tasks / workers
+
+        ompr = OMPRunner(
+            rw_class=       BRW,
+            devices=        [None] * workers,
+            report_delay=   2,
+            loglevel=       TESTS_LOGLEVEL)
+
+        tasks = [{
+            'ix':   ix,
+            'sec':  min_time + random.random() * (max_time-min_time)}
+            for ix in range(n_tasks)]
+
+        s_time = time.time()
+
+        for t in tasks:
+            ompr.process(t)
+        results = ompr.get_all_results()
+
+        run_time = time.time() - s_time
+        print(f'done, expected run time: {expected_run_time:.1f}s')
+        print(f'run time: {run_time:.1f}s ({len(results)}) {results}')
+
+        self.assertTrue(isinstance(results[0], str))
+        self.assertEqual(len(tasks), len(results))
+        self.assertTrue(run_time < expected_run_time * 2)
 
         results = ompr.get_all_results()
         self.assertTrue(results == [])
@@ -54,7 +100,7 @@ class TestOMPR(unittest.TestCase):
         ompr.exit()
 
     # results received one by one
-    def test_OMPR_one_by_one(self):
+    def test_OMPR_get_one_by_one(self):
 
         n_tasks =   50
         workers =   10
