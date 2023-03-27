@@ -78,13 +78,19 @@ class OMPRunner:
 
                         # try block for timeout exception
                         try:
-                            if timeout is not None: signal.alarm(timeout)
+
+                            if timeout is not None:
+                                signal.alarm(timeout)
 
                             # try block for process exceptions
-                            try:                   result = rwo.process(**task)
-                            except Exception as e: result = OMPRException(f'exception while processing task {task_ix}: {e}', task=task)
+                            try:
+                                result = rwo.process(**task)
+                            except Exception as e:
+                                result = OMPRException(f'exception while processing task {task_ix}: {e}', task=task)
 
-                            if timeout is not None: signal.alarm(0)
+                            if timeout is not None:
+                                signal.alarm(0)
+
                         except Exception as e:
                             result = OMPRException(f'exception while processing task {task_ix}: {e}', task=task)
 
