@@ -6,7 +6,7 @@ import psutil
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.lipytools.pylogger import get_pylogger, get_child
 from pypaq.pms.base import get_params
-from pypaq.mpython.devices import DevicesPypaq, get_devices
+from torchness.devices import DevicesTorchness, get_devices
 from pypaq.mpython.mptools import QMessage, Que, ExSubprocess
 import signal
 import time
@@ -113,7 +113,7 @@ class OMPRunner:
                 rw_class: type(RunningWorker),
                 rw_init_kwargs: Optional[Dict],
                 rw_lifetime: Optional[int],
-                devices: DevicesPypaq,
+                devices: DevicesTorchness,
                 ordered_results: bool,
                 task_timeout: Optional[int],
                 log_RWW_exception: bool,
