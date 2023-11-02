@@ -423,7 +423,7 @@ class OMPRunner:
             rw_class: type(RunningWorker),              # RunningWorker class that will run() given tasks
             rw_init_kwargs: Optional[Dict]= None,       # RunningWorker __init__ kwargs, logger is managed by OMPRunner
             rw_lifetime: Optional[int]=     None,       # RunningWorker lifetime, for None or 0 is unlimited, for N <1,n> each RW will be restarted after processing N tasks
-            devices: DevicesPypaq=          'all',
+            devices: DevicesTorchness=      'all',
             name: str=                      'OMPRunner',
             ordered_results: bool=          True,       # returns results in the order of tasks
             task_timeout: Optional[int]=    None,       # (sec)  RW process will be killed after that time of processing, OMPRException will be returned as a task result
