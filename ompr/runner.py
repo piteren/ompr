@@ -250,6 +250,7 @@ class OMPRunner:
             rww_ntasks = {k: 0 for k in self.rwwD.keys()}   # number of tasks processed by each RWW since restart
 
             iv_time = time.time()                           # interval report time
+            s_time = iv_time                                # start time
             iv_n_tasks = 0                                  # number of tasks finished since last interval
             n_tasks_processed = 0                           # number of tasks processed (total)
             speed_mavg = MovAvg(factor=0.2)                 # speed (tasks/min) moving average
@@ -287,6 +288,7 @@ class OMPRunner:
                             for task in msg_ique.data:
                                 tasks_que.append((next_task_ix, task))
                                 next_task_ix += 1
+
                         if msg_ique.type == 'poison':
                             # all RWW have to be killed here, from the loop
                             # we want to kill them because it is quicker than waiting for them till finish tasks
@@ -374,18 +376,20 @@ class OMPRunner:
                 if self.report_delay is not None and time.time()-iv_time > self.report_delay:
 
                     iv_speed = iv_n_tasks/((time.time()-iv_time)/60)
-                    speed = speed_mavg.upd(iv_speed)
+                    speed_now = speed_mavg.upd(iv_speed)
+                    speed_global = n_tasks_processed/((time.time()-s_time)/60)
 
-                    if speed != 0:
-                        if speed > 10:      speed_str = f'{int(speed)} tasks/min'
+                    if speed_now != 0:
+                        if speed_now > 10:    speed_now_str = f'{int(speed_now)} tasks/min'
                         else:
-                            if speed > 1:   speed_str = f'{speed:.1f} tasks/min'
-                            else:           speed_str = f'{1 / speed:.1f} min/task'
+                            if speed_now > 1: speed_now_str = f'{speed_now:.1f} tasks/min'
+                            else:             speed_now_str = f'{1 / speed_now:.1f} min/task'
                         n_tasks_left = len(tasks_que)
-                        est = n_tasks_left / speed
+                        est = n_tasks_left / speed_global
                         progress = n_tasks_processed / next_task_ix
-                        self.logger.info(f'> progress: {progress * 100:4.1f}% speed: {speed_str}, left:{n_tasks_left}/{next_task_ix}, EST:{est:.1f}min')
-                    else: self.logger.info(f'> processing speed unknown yet..')
+                        self.logger.info(f'> progress: {progress * 100:4.1f}% ({speed_now_str}) left:{n_tasks_left}/{next_task_ix}, EST:{est:.1f}min')
+                    else:
+                        self.logger.info(f'> processing speed unknown yet..')
 
                     iv_time = time.time()
                     iv_n_tasks = 0
