@@ -15,21 +15,24 @@ from typing import Any, List, Dict, Optional, Union
 from ompr.helpers import OMPRException
 
 
-# Worker for tasks, to be implemented - processes task given with kwargs and returns result
 class RunningWorker(ABC):
+    """ Worker for tasks
+    processes task given with kwargs and returns result
+    to be implemented """
 
     @abstractmethod # processing method to be implemented
     def process(self, **kwargs) -> Any: pass
 
 
-# Object based Multi-Processing Runner
+
 class OMPRunner:
+    """ Object based Multi-Processing Runner """
 
-    # Internal Processor of OMPRunner
     class InternalProcessor(ExSubprocess):
+        """ Internal Processor of OMPRunner """
 
-        # RWW wraps RunningWorker with Exception Managed Subprocess
         class RWWrap(ExSubprocess):
+            """ RWW wraps RunningWorker with Exception Managed Subprocess """
 
             def __init__(
                     self,
@@ -164,8 +167,8 @@ class OMPRunner:
                     'rw_init_kwargs':   kwD,
                     'rww':              None}
 
-        # builds and starts single RWWrap
         def _build_and_start_RWW(self, id:int):
+            """ builds and starts single RWWrap """
             assert self.rwwD[id]['rww'] is None
             self.rwwD[id]['rww'] = OMPRunner.InternalProcessor.RWWrap(
                 ique=                   Que(),
@@ -178,7 +181,6 @@ class OMPRunner:
             self.rwwD[id]['rww'].start()
             self.logger.debug(f'> {self.ip_name} built and started RWWrap id: {id}..')
 
-
         def build_and_start_allRWW(self):
             self.logger.info(f'> {self.ip_name} is going to build and start {len(self.rwwD)} RunningWorkers..')
             n_started = 0
@@ -188,8 +190,8 @@ class OMPRunner:
                     n_started += 1
             self.logger.info(f'> {self.ip_name} built and started {n_started} RunningWorkers')
 
-        # kills single RWWrap
         def _kill_RWW(self, id:int):
+            """ kills single RWWrap """
             self.rwwD[id]['rww'].kill()
             while True: # we have to flush the RW ique
                 ind = self.rwwD[id]['rww'].ique.get(block=False)
@@ -198,7 +200,6 @@ class OMPRunner:
             self.rwwD[id]['rww'] = None
             self.logger.debug(f'> {self.ip_name} killed and joined RWWrap id: {id}..')
 
-
         def _kill_allRWW(self):
             self.logger.info(f'> {self.ip_name} is going to kill and join {len(self.rwwD)} RunningWorkers..')
             for id in self.rwwD:
@@ -206,19 +207,21 @@ class OMPRunner:
                     self._kill_RWW(id)
             self.logger.info(f'> {self.ip_name} killed and joined all RunningWorkers')
 
-        # this method checks if all RunningWorkers are ready to process tasks
         def hold_till_allRWW_ready(self):
+            """ holds execution till all RunningWorkers are ready to process tasks """
             self.logger.info(f'> hold: {self.ip_name} is checking RW readiness..')
             for id in self.rwwD:
                 if self.rwwD[id]['rww'] is None:
                     self.logger.warning('some RWW are not started, cannot hold!!!')
                     return
-            for id in self.rwwD: self.rwwD[id]['rww'].ique.put(QMessage(type='hold_check', data=None))
-            for _ in self.rwwD: self.que_RW.get()
+            for id in self.rwwD:
+                self.rwwD[id]['rww'].ique.put(QMessage(type='hold_check', data=None))
+            for _ in self.rwwD:
+                self.que_RW.get()
             self.logger.info(' > hold: all RW are ready')
 
-        # returns string with information about subprocesses
         def _get_RWW_info(self) -> str:
+            """ returns information about subprocesses """
 
             ip_id = os.getpid()
             ip_mem = int(psutil.Process(ip_id).memory_info().rss / 1024 ** 2)
@@ -239,8 +242,8 @@ class OMPRunner:
             else:                s += f'subproc: {rww_mem} ({alive_info})'
             return s
 
-        # main loop of InternalProcessor (run by ExSubprocess)
         def subprocess_method(self):
+            """ main loop of InternalProcessor (run by ExSubprocess) """
 
             self.logger.info(f'> {self.ip_name} (pid: {os.getpid()}) starts loop with {len(self.rwwD)} RWW')
             self.build_and_start_allRWW()
@@ -408,8 +411,8 @@ class OMPRunner:
         def get_num_RWW(self):
             return len(self.rwwD)
 
-        # method to call out of the process (to exit it)
         def exit(self) -> None:
+            """ method to call out of the process (to exit it) """
 
             if self.alive:
                 self.ique.put(self.POISON_MSG)
@@ -420,7 +423,6 @@ class OMPRunner:
                         res = self.oque.get(block=False)
                         if res is None: break
                     self.join(timeout=0.0001)
-
 
     def __init__(
             self,
@@ -485,27 +487,31 @@ class OMPRunner:
             logger=                 self.logger)
         self._internal_processor.start()
 
-    # (not blocking) takes tasks for processing, starts processing, does not return anything
     def process(self, tasks: dict or List[dict]):
+        """ takes tasks for processing
+        starts processing
+        does not return anything
+        (not blocking) """
         if type(tasks) is dict: tasks = [tasks]
         self._tasks_que.put(QMessage(type='tasks', data=tasks))
         self._n_tasks_received += len(tasks)
 
-    # returns single result, may block or not
     def get_result(self, block=True) -> Optional[Any]:
+        """ returns single result, may block or not """
         if self._n_results_returned == self._n_tasks_received:
             self.logger.info(f'OMPRunner get_result() returns None since already returned all results (for all given tasks: n_results_returned == n_tasks_received)')
             return None
         else:
-            if block:   msg = self._results_que.get()
-            else:       msg = self._results_que.get(block=False)
+            if block: msg = self._results_que.get()
+            else:     msg = self._results_que.get(block=False)
             if msg:
                 self._n_results_returned += 1
                 return msg.data
             return None
 
-    # returns results of all tasks put up to NOW
     def get_all_results(self, pop_ex_results=False) -> List[Any]:
+        """ returns results of all tasks put up to NOW
+        pop_ex_results for True removes OMPRException result from the returned list """
         results = []
         n_results = self._n_tasks_received - self._n_results_returned
         while len(results) < n_results:
