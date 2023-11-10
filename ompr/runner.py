@@ -20,7 +20,7 @@ class RunningWorker(ABC):
     processes task given with kwargs and returns result
     to be implemented """
 
-    @abstractmethod # processing method to be implemented
+    @abstractmethod
     def process(self, **kwargs) -> Any: pass
 
 
@@ -387,10 +387,10 @@ class OMPRunner:
                         else:
                             if speed_now > 1: speed_now_str = f'{speed_now:.1f} tasks/min'
                             else:             speed_now_str = f'{1 / speed_now:.1f} min/task'
-                        n_tasks_left = len(tasks_que)
-                        est = n_tasks_left / speed_global
+                        n_tasks_que = len(tasks_que)
+                        est = n_tasks_que / speed_global
                         progress = n_tasks_processed / next_task_ix
-                        self.logger.info(f'> progress: {progress * 100:4.1f}% ({speed_now_str}) left:{n_tasks_left}/{next_task_ix}, EST:{est:.1f}min')
+                        self.logger.info(f'> progress: {progress * 100:4.1f}% ({speed_now_str}) que:{n_tasks_que}/{next_task_ix}, EST:{est:.1f}min')
                     else:
                         self.logger.info(f'> processing speed unknown yet..')
 
