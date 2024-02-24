@@ -6,4 +6,4 @@ class OMPRException(Exception):
 
     def __init__(self, *args, task:Optional[Dict]=None):
         self.task = task
-        Exception.__init__(self, *args)
+        super().__init__(*args)

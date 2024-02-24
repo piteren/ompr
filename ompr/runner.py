@@ -36,20 +36,10 @@ class OMPRunner:
 
             def __init__(
                     self,
-                    ique: Que,
-                    oque: Que,
-                    id: int,
                     rw_class: type(RunningWorker),
                     rw_init_kwargs: Dict,
-                    raise_unk_exception,
-                    logger):
-                ExSubprocess.__init__(
-                    self,
-                    ique=                   ique,
-                    oque=                   oque,
-                    id=                     id,
-                    raise_unk_exception=    raise_unk_exception,
-                    logger=                 logger)
+                    **kwargs):
+                super().__init__(**kwargs)
                 self.rw_class = rw_class
                 self.rw_init_kwargs = rw_init_kwargs
                 self.logger.info(f'> RWWrap({self.id}) initialized')
@@ -111,8 +101,6 @@ class OMPRunner:
 
         def __init__(
                 self,
-                ique: Que,                              # tasks and other messages
-                oque: Que,                              # results and exception_results
                 rw_class: type(RunningWorker),
                 rw_init_kwargs: Optional[Dict],
                 rw_lifetime: Optional[int],
@@ -122,21 +110,14 @@ class OMPRunner:
                 log_RWW_exception: bool,
                 raise_RWW_exception: bool,
                 report_delay: Optional[int],
-                logger):
+                **kwargs):
 
             self.rw_class = rw_class
             self.ip_name = f'InternalProcessor_for_{self.rw_class.__name__}' # INFO: .name conflicts with Process.name
 
-            self.logger = logger
-            self.logger.info(f'*** {self.ip_name} *** inits..')
-
             # adds to InternalProcessor Exception Managed Subprocess properties
-            ExSubprocess.__init__(
-                self,
-                ique=           ique,
-                oque=           oque,
-                id=             self.ip_name,
-                logger=         self.logger)
+            super().__init__(id=self.ip_name, **kwargs)
+            self.logger.info(f'*** {self.ip_name} *** inits..')
 
             self.que_RW = Que() # here OMP receives messages from RW ('result' or 'ex_..'/exception)
 
