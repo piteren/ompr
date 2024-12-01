@@ -383,11 +383,9 @@ class OMPRunner:
                     for rk in sorted(rww_ntasks.keys()):
                         self.logger.debug(f'{rk:2}: {rww_ntasks[rk]}')
 
-
         def after_exception_handle_run(self):
             self._kill_allRWW()
             self.logger.debug(f'> {self.ip_name} killed all RWW after exception occurred')
-
 
         def get_num_RWW(self):
             return len(self.rwwD)
