@@ -17,12 +17,11 @@ from ompr.helpers import OMPRException
 
 class RunningWorker(ABC):
     """ Worker for tasks
-    processes task given with kwargs and returns result
-    to be implemented """
+    processes task given with kwargs and returns result.
+    To be implemented by user """
 
     @abstractmethod
     def process(self, **kwargs) -> Any: pass
-
 
 
 class OMPRunner:
@@ -481,8 +480,7 @@ class OMPRunner:
             self.logger.info(f'OMPRunner get_result() returns None since already returned all results (for all given tasks: n_results_returned == n_tasks_received)')
             return None
         else:
-            if block: msg = self._results_que.get()
-            else:     msg = self._results_que.get(block=False)
+            msg = self._results_que.get(block=block)
             if msg:
                 self._n_results_returned += 1
                 return msg.data
@@ -492,8 +490,7 @@ class OMPRunner:
         """ returns results of all tasks put up to NOW
         pop_ex_results for True removes OMPRException result from the returned list """
         results = []
-        n_results = self._n_tasks_received - self._n_results_returned
-        while len(results) < n_results:
+        while len(results) < self._n_tasks_received - self._n_results_returned:
             results.append(self.get_result(block=True))
         if pop_ex_results:
             results = [r for r in results if type(r) is not OMPRException]
