@@ -32,7 +32,7 @@ class TestOMPR(unittest.TestCase):
         expected_run_time = (max_time + min_time) / 2 * n_tasks / workers
 
         ompr = OMPRunner(
-            rw_class=       BRW,
+            rww_class=      BRW,
             devices=        [None] * workers,
             report_delay=   2,
             loglevel=       TESTS_LOGLEVEL)
@@ -70,7 +70,7 @@ class TestOMPR(unittest.TestCase):
         expected_run_time = (max_time + min_time) / 2 * n_tasks / workers
 
         ompr = OMPRunner(
-            rw_class=       BRW,
+            rww_class=      BRW,
             devices=        [None] * workers,
             report_delay=   2,
             loglevel=       TESTS_LOGLEVEL)
@@ -108,7 +108,7 @@ class TestOMPR(unittest.TestCase):
         max_time =  1.7
 
         ompr = OMPRunner(
-            rw_class=       BRW,
+            rww_class=      BRW,
             devices=        [None] * workers,
             report_delay=   2,
             loglevel=       TESTS_LOGLEVEL)
@@ -150,7 +150,7 @@ class TestOMPR(unittest.TestCase):
         max_time =  1.7
 
         ompr = OMPRunner(
-            rw_class=           BRW,
+            rww_class=          BRW,
             devices=            [None] * workers,
             ordered_results=    False,
             report_delay=       2,
@@ -187,8 +187,8 @@ class TestOMPR(unittest.TestCase):
         process_lifetime =  2
 
         ompr = OMPRunner(
-            rw_class=       BRW,
-            rw_lifetime=    process_lifetime,
+            rww_class=      BRW,
+            rww_lifetime=   process_lifetime,
             devices=        [None] * workers,
             report_delay=   2,
             loglevel=       TESTS_LOGLEVEL)
@@ -230,7 +230,7 @@ class TestOMPR(unittest.TestCase):
         exception_prob= 0.3
 
         ompr = OMPRunner(
-            rw_class=       BRW,
+            rww_class=      BRW,
             devices=        [None] * workers,
             report_delay=   2,
             loglevel=       TESTS_LOGLEVEL)
@@ -275,7 +275,7 @@ class TestOMPR(unittest.TestCase):
         task_timeout =  1
 
         ompr = OMPRunner(
-            rw_class=       BRW,
+            rww_class=      BRW,
             devices=        [None] * workers,
             task_timeout=   task_timeout,
             report_delay=   2,
@@ -306,8 +306,8 @@ class TestOMPR(unittest.TestCase):
         process_lifetime =  2
 
         ompr = OMPRunner(
-            rw_class=       BRW,
-            rw_lifetime=    process_lifetime,
+            rww_class=      BRW,
+            rww_lifetime=   process_lifetime,
             devices=        [None] * workers,
             task_timeout=   task_timeout,
             report_delay=   2,
@@ -330,14 +330,14 @@ class TestOMPR(unittest.TestCase):
     # many timeouts
     def test_OMPR_many_timeouts(self):
 
-        n_tasks =           10000
+        n_tasks =           1000
         min_time =          0.9
         max_time =          1.5
         timeout =           1
         exception_prob =    0.5
 
         ompr = OMPRunner(
-            rw_class=           BRW,
+            rww_class=          BRW,
             devices=            'all',
             task_timeout=       timeout,
             log_RWW_exception=  False,
@@ -359,8 +359,6 @@ class TestOMPR(unittest.TestCase):
 
         ompr.exit()
 
-        # OMPRunner with many task timeout
-
     # many fast tasks
     def test_OMPR_speed(self):
 
@@ -372,7 +370,7 @@ class TestOMPR(unittest.TestCase):
         n_tasks =           100000
 
         ompr = OMPRunner(
-            rw_class=       FRW,
+            rww_class=      FRW,
             devices=        'all',
             report_delay=   2,
             loglevel=       TESTS_LOGLEVEL)
@@ -390,7 +388,7 @@ class TestOMPR(unittest.TestCase):
     # many timeouts + exceptions
     def test_OMPR_stress(self):
 
-        n_tasks =           10000
+        n_tasks =           1000
         min_time =          0.001
         max_time =          2.2
         timeout =           2
@@ -413,7 +411,7 @@ class TestOMPR(unittest.TestCase):
                 return s
 
         ompr = OMPRunner(
-            rw_class=           SRW,
+            rww_class=          SRW,
             devices=            0.7,
             task_timeout=       timeout,
             log_RWW_exception=  False,

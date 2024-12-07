@@ -38,12 +38,12 @@ If you have any questions or need any support, please contact me: me@piotniewins
 ---
 #### More about `RunningWorker`
 
-There are two policies (managed by OMPR, controlled with the `rw_lifetime` parameter) of `RunningWorker` lifecycle:
+There are two policies (managed by OMPR, controlled with the `rww_lifetime` parameter) of `RunningWorker` lifecycle:
     
     1st - RunningWorker is closed after processing some task (1..N)
     2nd - RunningWorker is closed only when it crashes or with the OMP exit
 
-Each policy has job-specific pros and cons. By default, the second is activated with `rw_lifetime=None`.
+Each policy has job-specific pros and cons. By default, the second is activated with `rww_lifetime=None`.
     
     + all RunningWorkers are initialized once while OMP inits - it saves time
     - memory kept by the RunningWorker may grow over time (while processing many tasks)

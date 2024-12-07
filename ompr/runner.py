@@ -7,7 +7,7 @@ from pypaq.lipytools.moving_average import MovAvg
 from pypaq.lipytools.pylogger import get_pylogger, get_child
 from pypaq.pms.base import get_params
 from torchness.devices import DevicesTorchness, get_devices
-from pypaq.mpython.mptools import QMessage, Que, ExSubprocess
+from pypaq.mpython.mptools import QMessage, Que, ExProcess
 import signal
 import time
 from typing import Any, List, Dict, Optional, Union
@@ -16,7 +16,7 @@ from ompr.helpers import OMPRException
 
 
 class RunningWorker(ABC):
-    """ Worker for tasks
+    """ Worker for tasks,
     processes task given with kwargs and returns result.
     To be implemented by user """
 
@@ -27,34 +27,38 @@ class RunningWorker(ABC):
 class OMPRunner:
     """ Object based Multi-Processing Runner """
 
-    class InternalProcessor(ExSubprocess):
-        """ Internal Processor of OMPRunner """
+    class InternalProcessor(ExProcess):
+        """ Internal Processor of OMPRunner
+        this class manages RunningWorkers:
+         - inits them, sends tasks, receives results
+        it is designed as a subprocess of OMPRunner not to block OMPRunner process """
 
-        class RWWrap(ExSubprocess):
-            """ RWW wraps RunningWorker with Exception Managed Subprocess """
+        class RWW(ExProcess):
+            """ RWW wraps RunningWorker object with ExProcess """
 
             def __init__(
                     self,
-                    rw_class: type(RunningWorker),
-                    rw_init_kwargs: Dict,
+                    rww_class: type(RunningWorker),
+                    rww_init_kwargs: Dict,
                     **kwargs):
                 super().__init__(**kwargs)
-                self.rw_class = rw_class
-                self.rw_init_kwargs = rw_init_kwargs
-                self.logger.info(f'> RWWrap({self.id}) initialized')
+                self.rww_class = rww_class
+                self.rww_init_kwargs = rww_init_kwargs
+                self.logger.info(f'> *** RWW *** id: {self.name} initialized')
 
-            # loop for processing RW tasks, this method will be run within subprocess (ExSubprocess)
-            def subprocess_method(self):
+            def exprocess_method(self):
+                """ here, in a loop RW tasks will be processed """
 
-                # register an handler for the timeout
+                # register handler for the timeout
                 def handler_timeout(signum, frame):
                     raise OMPRException('RW timeout')
 
-                self.logger.info(f'> RWWrap ({self.id}) pid: {os.getpid()} inits RunningWorker')
-                rwo = self.rw_class(**self.rw_init_kwargs)
-                self.logger.info(f'> RWWrap ({self.id}) starts process loop..')
+                self.logger.info(f'> {self.name} pid: {os.getpid()} inits RunningWorker')
+                rwo = self.rww_class(**self.rww_init_kwargs)
+                self.logger.info(f'> {self.name} starts process loop..')
 
-                signal.signal(signal.SIGALRM, handler_timeout) # register handler_timeout as a handler for the signal.SIGALRM function
+                # register handler_timeout as a handler for the signal.SIGALRM function
+                signal.signal(signal.SIGALRM, handler_timeout)
 
                 while True:
                     ompr_msg: QMessage = self.ique.get()
@@ -90,19 +94,19 @@ class OMPRunner:
                             self.oque.put(QMessage(
                                 type=   'exception' if type(result) is OMPRException else 'result',
                                 data=   {
-                                    'rww_id':   self.id,
+                                    'rww_name': self.name,
                                     'task_ix':  task_ix,
                                     'result':   result}))
 
-                self.logger.info(f'> RWWrap (id: {self.id}) finished process loop')
+                self.logger.info(f'> {self.name} finished process loop')
 
         POISON_MSG = QMessage(type='poison', data=None)
 
         def __init__(
                 self,
-                rw_class: type(RunningWorker),
-                rw_init_kwargs: Optional[Dict],
-                rw_lifetime: Optional[int],
+                rww_class: type(RunningWorker),
+                rww_init_kwargs: Optional[Dict],
+                rww_lifetime: Optional[int],
                 devices: DevicesTorchness,
                 ordered_results: bool,
                 task_timeout: Optional[int],
@@ -111,23 +115,21 @@ class OMPRunner:
                 report_delay: Optional[int],
                 **kwargs):
 
-            self.rw_class = rw_class
-            self.ip_name = f'InternalProcessor_for_{self.rw_class.__name__}' # INFO: .name conflicts with Process.name
+            self.rww_class = rww_class
+            super().__init__(name=f'InternalProcessor_for_{self.rww_class.__name__}', **kwargs)
 
-            # adds to InternalProcessor Exception Managed Subprocess properties
-            super().__init__(id=self.ip_name, **kwargs)
-            self.logger.info(f'*** {self.ip_name} *** inits..')
+            # here InternalProcessor receives messages from RW (result, ex_, ..)
+            # this que will be put as oque of RWW
+            self.que_RW = Que()
 
-            self.que_RW = Que() # here OMP receives messages from RW ('result' or 'ex_..'/exception)
-
-            if not rw_init_kwargs: rw_init_kwargs = {}
-            self.rw_lifetime = rw_lifetime
+            if not rww_init_kwargs: rww_init_kwargs = {}
+            self.rww_lifetime = rww_lifetime
 
             devices = get_devices(devices=devices, torch_namespace=False)
-            self.logger.info(f'> {self.ip_name} resolved devices: {devices}')
+            self.logger.info(f'> {self.name} resolved devices: {devices}')
 
             dev_param_name = None
-            pms = getfullargspec(self.rw_class).args
+            pms = getfullargspec(self.rww_class).args
             if 'devices' in pms: dev_param_name = 'devices'
             if 'device' in pms: dev_param_name = 'device'
 
@@ -138,64 +140,65 @@ class OMPRunner:
             self.report_delay = report_delay
 
             # prepare RWW dictionary, keeps RWW id, RW init kwargs, RWW object
-            self.rwwD: Dict[int, Dict] = {}  # {rww.id: {'rw_init_kwargs':{}, 'rww':RWWrap}}
-            for id, dev in enumerate(devices):
+            self.rwwD: Dict[str,Dict] = {}  # {rww.name: {'rww_init_kwargs':{}, 'rww':RWW}}
+            for dix, dev in enumerate(devices):
                 kwD = {}
-                kwD.update(rw_init_kwargs)
-                if dev_param_name: kwD[dev_param_name] = dev
-                self.rwwD[id] = {
-                    'rw_init_kwargs':   kwD,
+                kwD.update(rww_init_kwargs)
+                if dev_param_name:
+                    kwD[dev_param_name] = dev
+                self.rwwD[f'RWW-{dix}'] = {
+                    'rww_init_kwargs':  kwD,
                     'rww':              None}
 
-        def _build_and_start_RWW(self, id:int):
-            """ builds and starts single RWWrap """
-            assert self.rwwD[id]['rww'] is None
-            self.rwwD[id]['rww'] = OMPRunner.InternalProcessor.RWWrap(
+        def _build_and_start_RWW(self, rww_name:str):
+            """ builds and starts single RWW """
+            assert self.rwwD[rww_name]['rww'] is None
+            self.rwwD[rww_name]['rww'] = OMPRunner.InternalProcessor.RWW(
+                rww_class=              self.rww_class,
+                rww_init_kwargs=        self.rwwD[rww_name]['rww_init_kwargs'],
                 ique=                   Que(),
                 oque=                   self.que_RW,
-                id=                     id,
-                rw_class=               self.rw_class,
-                rw_init_kwargs=         self.rwwD[id]['rw_init_kwargs'],
+                name=                   rww_name,
                 raise_unk_exception=    self.raise_RWW_exception,
-                logger=                 get_child(self.logger))
-            self.rwwD[id]['rww'].start()
-            self.logger.debug(f'> {self.ip_name} built and started RWWrap id: {id}..')
+                logger=                 get_child(logger=self.logger, name=rww_name, change_level=10))
+            self.rwwD[rww_name]['rww'].start()
+            self.logger.debug(f'> {self.name} built and started {rww_name} ..')
 
         def build_and_start_allRWW(self):
-            self.logger.info(f'> {self.ip_name} is going to build and start {len(self.rwwD)} RunningWorkers..')
+            self.logger.info(f'> {self.name} is going to build and start {len(self.rwwD)} RunningWorkers..')
             n_started = 0
             for id in self.rwwD:
                 if self.rwwD[id]['rww'] is None:
                     self._build_and_start_RWW(id)
                     n_started += 1
-            self.logger.info(f'> {self.ip_name} built and started {n_started} RunningWorkers')
+            self.logger.info(f'> {self.name} built and started {n_started} RunningWorkers')
 
-        def _kill_RWW(self, id:int):
-            """ kills single RWWrap """
-            self.rwwD[id]['rww'].kill()
+        def _kill_RWW(self, name:str):
+            """ kills single RWW """
+            self.rwwD[name]['rww'].kill()
             while True: # we have to flush the RW ique
-                ind = self.rwwD[id]['rww'].ique.get(block=False)
+                ind = self.rwwD[name]['rww'].ique.get(block=False)
                 if not ind: break
-            self.rwwD[id]['rww'].join()
-            self.rwwD[id]['rww'] = None
-            self.logger.debug(f'> {self.ip_name} killed and joined RWWrap id: {id}..')
+            self.rwwD[name]['rww'].join()
+            self.rwwD[name]['rww'] = None
+            self.logger.debug(f'> {self.name} killed and joined RWW: {name}..')
 
         def _kill_allRWW(self):
-            self.logger.info(f'> {self.ip_name} is going to kill and join {len(self.rwwD)} RunningWorkers..')
-            for id in self.rwwD:
-                if self.rwwD[id]['rww'] is not None:
-                    self._kill_RWW(id)
-            self.logger.info(f'> {self.ip_name} killed and joined all RunningWorkers')
+            self.logger.info(f'> {self.name} is going to kill and join {len(self.rwwD)} RunningWorkers..')
+            for name in self.rwwD:
+                if self.rwwD[name]['rww'] is not None:
+                    self._kill_RWW(name)
+            self.logger.info(f'> {self.name} killed and joined all RunningWorkers')
 
         def hold_till_allRWW_ready(self):
             """ holds execution till all RunningWorkers are ready to process tasks """
-            self.logger.info(f'> hold: {self.ip_name} is checking RW readiness..')
-            for id in self.rwwD:
-                if self.rwwD[id]['rww'] is None:
+            self.logger.info(f'> hold: {self.name} is checking RW readiness..')
+            for name in self.rwwD:
+                if self.rwwD[name]['rww'] is None:
                     self.logger.warning('some RWW are not started, cannot hold!!!')
                     return
-            for id in self.rwwD:
-                self.rwwD[id]['rww'].ique.put(QMessage(type='hold_check', data=None))
+            for name in self.rwwD:
+                self.rwwD[name]['rww'].ique.put(QMessage(type='hold_check', data=None))
             for _ in self.rwwD:
                 self.que_RW.get()
             self.logger.info(' > hold: all RW are ready')
@@ -209,23 +212,23 @@ class OMPRunner:
             used = vm.used / 1024 ** 3
 
             num_all = len(self.rwwD)
-            num_alive = sum([1 for rww_id in self.rwwD if self.rwwD[rww_id]['rww'] is not None and self.rwwD[rww_id]['rww'].alive])
-            num_closed = sum([1 for rww_id in self.rwwD if self.rwwD[rww_id]['rww'] is not None and self.rwwD[rww_id]['rww'].closed])
+            num_alive = sum([1 for n in self.rwwD if self.rwwD[n]['rww'] is not None and self.rwwD[n]['rww'].alive])
+            num_closed = sum([1 for n in self.rwwD if self.rwwD[n]['rww'] is not None and self.rwwD[n]['rww'].closed])
             alive_info = f'{num_all}= alive:{num_alive} closed:{num_closed}'
 
-            rww_mem = [int(psutil.Process(self.rwwD[id]['rww'].pid).memory_info().rss / 1024 ** 2) for id in self.rwwD if self.rwwD[id]['rww'].alive]
+            rww_mem = [int(psutil.Process(self.rwwD[name]['rww'].pid).memory_info().rss / 1024 ** 2) for name in self.rwwD if self.rwwD[name]['rww'].alive]
             rww_mem.sort(reverse=True)
 
             tot_mem = ip_mem + sum(rww_mem)
-            s = f'# {self.ip_name} mem: {ip_mem}MB, omp+sp/used: {tot_mem/1024:.1f}/{used:.1f}GB ({int(vm.percent)}%VM) '
+            s = f'# {self.name} mem: {ip_mem}MB, omp+sp/used: {tot_mem/1024:.1f}/{used:.1f}GB ({int(vm.percent)}%VM) '
             if len(rww_mem) > 6: s += f'subproc: {rww_mem[:3]}-{int(sum(rww_mem)/len(rww_mem))}-{rww_mem[-3:]} ({alive_info})'
             else:                s += f'subproc: {rww_mem} ({alive_info})'
             return s
 
-        def subprocess_method(self):
-            """ main loop of InternalProcessor (run by ExSubprocess) """
+        def exprocess_method(self):
+            """ main loop of InternalProcessor """
 
-            self.logger.info(f'> {self.ip_name} (pid: {os.getpid()}) starts loop with {len(self.rwwD)} RWW')
+            self.logger.info(f'> {self.name} (pid: {os.getpid()}) starts loop with {len(self.rwwD)} RWW')
             self.build_and_start_allRWW()
 
             next_task_ix = 0                                # next task index (index of task that will be processed next)
@@ -239,7 +242,7 @@ class OMPRunner:
             speed_mavg = MovAvg(factor=0.2)                 # speed (tasks/min) moving average
 
             tasks_que = deque()                             # que of (task_ix, task) to be processed (received from the self.ique)
-            resources = list(self.rwwD.keys())              # list [rww_id] of all available (not busy) resources
+            resources = list(self.rwwD.keys())              # list [name] of all available (not busy) resources
 
             resultsD: Dict[int, Any] = {}                   # results dict {task_ix: result(data)} for ordered tasks
             while True:
@@ -261,11 +264,11 @@ class OMPRunner:
                     if msg_ique:
 
                         if msg_ique.type not in ['tasks','poison']:
-                            nfo = f'{self.ip_name} received unknown message type: \'{msg_ique.type}\''
+                            nfo = f'{self.name} received unknown message type: \'{msg_ique.type}\''
                             self.logger.error(nfo)
                             raise OMPRException(nfo)
 
-                        self.logger.debug(f'> {self.ip_name} got \'{msg_ique.type}\' message from ique')
+                        self.logger.debug(f'> {self.name} got \'{msg_ique.type}\' message from ique')
                         if msg_ique.type == 'tasks':
                             # unpack tasks
                             for task in msg_ique.data:
@@ -290,18 +293,18 @@ class OMPRunner:
                 ### eventually put resources into work
 
                 while resources and tasks_que:
-                    self.logger.debug(f'> free resources: {len(resources)}, tasks_que len: {len(tasks_que)}, ique.qsize: {self.ique.qsize()}')
+                    self.logger.debug(f'> free resources: {len(resources)}, tasks_que len: {len(tasks_que)}, ique.qsize: {self.ique.qsize}')
 
-                    rww_id = resources.pop(0) # take first free resource
+                    rww_name = resources.pop(0) # take first free resource
 
                     # eventually restart RWW (lifetime limit)
-                    if self.rw_lifetime and rww_ntasks[rww_id] >= self.rw_lifetime:
-                        self.logger.debug(f'> restarting RWWrap id: {rww_id} because of lifetime condition..')
-                        self._kill_RWW(rww_id)
-                        self._build_and_start_RWW(rww_id)
-                        rww_ntasks[rww_id] = 0
+                    if self.rww_lifetime and rww_ntasks[rww_name] >= self.rww_lifetime:
+                        self.logger.debug(f'> restarting RWW: {rww_name} because of lifetime condition..')
+                        self._kill_RWW(rww_name)
+                        self._build_and_start_RWW(rww_name)
+                        rww_ntasks[rww_name] = 0
 
-                    # get first task, prepare and put message for RWWrap
+                    # get first task, prepare and put message for RWW
                     task_ix, task = tasks_que.popleft()
                     msg = QMessage(
                         type=   'task',
@@ -309,16 +312,16 @@ class OMPRunner:
                             'task_ix':      task_ix,
                             'task_timeout': self.task_timeout,
                             'task':         task})
-                    self.rwwD[rww_id]['rww'].ique.put(msg)
+                    self.rwwD[rww_name]['rww'].ique.put(msg)
 
-                    self.logger.debug(f'> put task {task_ix} for RWWrap({rww_id})')
+                    self.logger.debug(f'> put task {task_ix} for {rww_name}')
 
                 ### eventually manage RWW results
 
                 msg_rww = self.que_RW.get(block=False)
 
                 # wait for one result when no possibility to start processing another task
-                if not msg_rww and (resources and (tasks_que or self.ique.qsize())):
+                if not msg_rww and (resources and (tasks_que or self.ique.qsize)):
                     msg_rww = self.que_RW.get(block=True)
 
                 while True:
@@ -326,23 +329,23 @@ class OMPRunner:
                     if msg_rww:
 
                         if msg_rww.type not in ['result','exception']:
-                            self.logger.warning(f'> {self.ip_name} got from RWW unknown message type: \'{msg_rww.type}\'')
+                            self.logger.warning(f'> {self.name} got from RWW unknown message type: \'{msg_rww.type}\'')
                             break
 
-                        rww_id =    msg_rww.data['rww_id']
+                        rww_name =  msg_rww.data['rww_name']
                         task_ix =   msg_rww.data['task_ix']
                         result =    msg_rww.data['result']
-                        self.logger.debug(f'> {self.ip_name} got message from RWW {rww_id} for task {task_ix}')
+                        self.logger.debug(f'> {self.name} got message from RWW {rww_name} for task {task_ix}')
 
                         if type(result) is OMPRException and self.log_RWW_exception:
-                            self.logger.warning(f'> {self.ip_name} got exception message from RWW {rww_id} for task {task_ix}: {result}')
+                            self.logger.warning(f'> {self.name} got exception message from RWW {rww_name} for task {task_ix}: {result}')
 
                         res_msg = QMessage(type='result', data=result)
                         if self.ordered_results: resultsD[task_ix] = res_msg
                         else: self.oque.put(res_msg)
 
-                        rww_ntasks[rww_id] += 1
-                        resources.append(rww_id)
+                        rww_ntasks[rww_name] += 1
+                        resources.append(rww_name)
 
                         n_tasks_processed += 1
                         iv_n_tasks += 1
@@ -384,7 +387,7 @@ class OMPRunner:
 
         def after_exception_handle_run(self):
             self._kill_allRWW()
-            self.logger.debug(f'> {self.ip_name} killed all RWW after exception occurred')
+            self.logger.debug(f'> {self.name} killed all RWW after exception occurred')
 
         def get_num_RWW(self):
             return len(self.rwwD)
@@ -404,24 +407,21 @@ class OMPRunner:
 
     def __init__(
             self,
-            rw_class: type(RunningWorker),              # RunningWorker class that will run() given tasks
-            rw_init_kwargs: Optional[Dict]= None,       # RunningWorker __init__ kwargs, logger is managed by OMPRunner
-            rw_lifetime: Optional[int]=     None,       # RunningWorker lifetime, for None or 0 is unlimited, for N <1,n> each RW will be restarted after processing N tasks
-            devices: DevicesTorchness=      'all',
-            name: str=                      'OMPRunner',
-            ordered_results: bool=          True,       # returns results in the order of tasks
-            task_timeout: Optional[int]=    None,       # (sec)  RW process will be killed after that time of processing, OMPRException will be returned as a task result
-            log_RWW_exception: bool=        True,       # logs RWW exceptions
-            raise_RWW_exception: bool=      False,      # forces RWW to raise exceptions (.. all but KeyboardInterrupt)
-            report_delay: Union[int,str]=   'auto',     # num sec between speed_report, 'auto' uses loglevel, for 'none' there is no speed report
-            logger=                         None,
-            loglevel=                       20):
-
-        self.omp_name = name
+            rww_class: type(RunningWorker),              # RunningWorker class that will process() given tasks
+            rww_init_kwargs: Optional[Dict]=    None,       # RunningWorker __init__ kwargs, logger is managed by OMPRunner
+            rww_lifetime: Optional[int]=        None,       # RunningWorker lifetime, for None or 0 is unlimited, for N <1,n> each RW will be restarted after processing N tasks
+            devices: DevicesTorchness=          'all',
+            ordered_results: bool=              True,       # returns results in the order of tasks
+            task_timeout: Optional[int]=        None,       # (sec)  RW process will be killed after that time of processing, OMPRException will be returned as a task result
+            log_RWW_exception: bool=            True,       # logs RWW exceptions
+            raise_RWW_exception: bool=          False,      # forces RWW to raise exceptions (all but KeyboardInterrupt)
+            report_delay: Union[int,str]=       'auto',     # num sec between speed_report, 'auto' uses loglevel, for 'none' there is no speed report
+            logger=                             None,
+            loglevel=                           20):
 
         if not logger:
             logger = get_pylogger(
-                name=       self.omp_name,
+                name=       self.__class__.__name__,
                 folder=     None,
                 level=      loglevel)
         self.logger = logger
@@ -429,33 +429,34 @@ class OMPRunner:
         if self.logger.level < 20:
             log_RWW_exception = True
 
-        self.logger.info('*** OMPRunner *** inits..')
-        self.logger.info(f'> name:     {self.omp_name}')
-        self.logger.info(f'> pid:      {os.getpid()}')
-        self.logger.info(f'> rw_class: {rw_class.__name__}')
+        self.logger.info(f'*** OMPRunner *** inits, '
+                         f'pid: {os.getpid()}, '
+                         f'rww_class: {rww_class.__name__}')
 
         self._tasks_que = Que()             # que of tasks to be processed
         self._results_que = Que()           # que of ready results
         self._n_tasks_received: int = 0     # number of tasks received from user till now
         self._n_results_returned: int = 0   # number of results returned to user till now
 
-        if report_delay == 'none': report_delay = None
-        if report_delay == 'auto': report_delay = 30 if loglevel>10 else 10
+        if report_delay == 'none':
+            report_delay = None
+        if report_delay == 'auto':
+            report_delay = 30 if loglevel>10 else 10
 
-        if not rw_init_kwargs:
-            rw_init_kwargs = {}
+        if not rww_init_kwargs:
+            rww_init_kwargs = {}
 
-        # eventually add self.logger to rw_init_kwargs
-        rw_class_params = get_params(rw_class.__init__)
-        if 'logger' in rw_class_params['with_defaults'] or 'logger' in rw_class_params['without_defaults']:
-            rw_init_kwargs['logger'] = self.logger
+        # eventually add self.logger to rww_init_kwargs
+        rww_class_params = get_params(rww_class.__init__)
+        if 'logger' in rww_class_params['with_defaults'] or 'logger' in rww_class_params['without_defaults']:
+            rww_init_kwargs['logger'] = self.logger
 
         self._internal_processor = OMPRunner.InternalProcessor(
             ique=                   self._tasks_que,
             oque=                   self._results_que,
-            rw_class=               rw_class,
-            rw_init_kwargs=         rw_init_kwargs if rw_init_kwargs else {},
-            rw_lifetime=            rw_lifetime,
+            rww_class=              rww_class,
+            rww_init_kwargs=        rww_init_kwargs if rww_init_kwargs else {},
+            rww_lifetime=           rww_lifetime,
             devices=                devices,
             ordered_results=        ordered_results,
             task_timeout=           task_timeout,
@@ -466,9 +467,9 @@ class OMPRunner:
         self._internal_processor.start()
 
     def process(self, tasks: dict or List[dict]):
-        """ takes tasks for processing
-        starts processing
-        does not return anything
+        """ takes tasks for processing,
+        starts processing,
+        does not return anything,
         (not blocking) """
         if type(tasks) is dict: tasks = [tasks]
         self._tasks_que.put(QMessage(type='tasks', data=tasks))
@@ -490,7 +491,7 @@ class OMPRunner:
         """ returns results of all tasks put up to NOW
         pop_ex_results for True removes OMPRException result from the returned list """
         results = []
-        while len(results) < self._n_tasks_received - self._n_results_returned:
+        while self._n_tasks_received > self._n_results_returned:
             results.append(self.get_result(block=True))
         if pop_ex_results:
             results = [r for r in results if type(r) is not OMPRException]
@@ -506,6 +507,6 @@ class OMPRunner:
 
     def exit(self):
         if self._n_results_returned != self._n_tasks_received:
-            self.logger.warning(f'{self.omp_name} exits while not all results were returned to user!')
+            self.logger.warning(f'{self.__class__.__name__} exits while not all results were returned to user!')
         self._internal_processor.exit()
-        self.logger.info(f'> {self.omp_name}: internal processor stopped, {self.omp_name} exits.')
+        self.logger.info(f'> internal processor stopped, {self.__class__.__name__} exits.')

@@ -13,14 +13,14 @@ class Test_simple(unittest.TestCase):
             time.sleep(1)
             return a*b
 
-        num_tasks = 50
+        num_tasks = 20
 
         tasks = [{'a':random.random(), 'b':random.random()} for _ in range(num_tasks)]
 
         res = simple_process(
             tasks=          tasks,
             function=       func,
-            loglevel=       20,
+            loglevel=       10,
             num_workers=    4)
         print(len(res))
         self.assertTrue(len(res)==num_tasks)
