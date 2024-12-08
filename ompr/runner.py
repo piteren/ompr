@@ -6,8 +6,8 @@ import psutil
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.lipytools.pylogger import get_pylogger, get_child
 from pypaq.pms.base import get_params
-from torchness.devices import DevicesTorchness, get_devices
 from pypaq.mpython.mptools import QMessage, Que, ExProcess
+from pypaq.mpython.devices import DevicesPypaq, get_devices
 import signal
 import time
 from typing import Any, List, Dict, Optional, Union
@@ -126,7 +126,7 @@ class OMPRunner:
                 rww_init_kwargs: Optional[Dict],
                 rww_lifetime: Optional[int],
                 rww_init_sync: bool,
-                devices: DevicesTorchness,
+                devices: DevicesPypaq,
                 ordered_results: bool,
                 task_timeout: Optional[int],
                 rerun_crashed: bool,
@@ -146,7 +146,7 @@ class OMPRunner:
             self.rww_lifetime = rww_lifetime
             self.rww_init_sync = rww_init_sync
 
-            devices = get_devices(devices=devices, torch_namespace=False)
+            devices = get_devices(devices=devices)
             self.logger.info(f'> {self.name} resolved devices: {devices}')
 
             dev_param_name = None
@@ -460,7 +460,7 @@ class OMPRunner:
             rww_init_kwargs: Optional[Dict]=    None,
             rww_lifetime: Optional[int]=        None,
             rww_init_sync: bool=                False,
-            devices: DevicesTorchness=          'all',
+            devices: DevicesPypaq=              'all',
             ordered_results: bool=              True,
             task_timeout: Optional[int]=        None,
             rerun_crashed: bool=                True,
@@ -585,7 +585,7 @@ class OMPRunner:
             'n_results_returned':   self._n_results_returned}
 
     def get_num_workers(self) -> int:
-        return self._internal_processor.get_num_RWW()
+        return self._internal_processor.num_RWW
 
     def exit(self):
         if self._n_results_returned != self._n_tasks_received:
