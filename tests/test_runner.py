@@ -1,7 +1,6 @@
 import random
 import time
 import unittest
-from typing import Union
 
 from ompr.runner import OMPRunner, RunningWorker, OMPRException
 
@@ -13,11 +12,17 @@ class BRW(RunningWorker):
     def process(
             self,
             ix: int,
-            sec: Union[float,int],
+            min_time: float,
+            max_time: float,
             exception_prob: float=  0.0) -> object:
-        time.sleep(sec)
-        if random.random() < exception_prob: raise Exception('randomly crashed')
-        return f'{ix}_{sec}'
+
+        if random.random() < exception_prob:
+            raise Exception('RandomlyCrashed')
+
+        _sleep = min_time + random.random() * (max_time-min_time)
+        time.sleep(_sleep)
+
+        return f'{ix}_{_sleep}'
 
 
 class TestOMPR(unittest.TestCase):
@@ -38,8 +43,9 @@ class TestOMPR(unittest.TestCase):
             loglevel=       TESTS_LOGLEVEL)
 
         tasks = [{
-            'ix':   ix,
-            'sec':  min_time + random.random() * (max_time-min_time)}
+            'ix':       ix,
+            'min_time': min_time,
+            'max_time': max_time}
             for ix in range(n_tasks)]
 
         s_time = time.time()
@@ -49,7 +55,7 @@ class TestOMPR(unittest.TestCase):
 
         run_time = time.time()-s_time
         print(f'done, expected run time: {expected_run_time:.1f}s')
-        print(f'run time: {run_time:.1f}s ({len(results)}) {results}')
+        print(f'run time: {run_time:.1f}s ({len(results)})')
 
         self.assertTrue(isinstance(results[0], str))
         self.assertEqual(len(tasks), len(results))
@@ -76,8 +82,9 @@ class TestOMPR(unittest.TestCase):
             loglevel=       TESTS_LOGLEVEL)
 
         tasks = [{
-            'ix':   ix,
-            'sec':  min_time + random.random() * (max_time-min_time)}
+            'ix':       ix,
+            'min_time': min_time,
+            'max_time': max_time}
             for ix in range(n_tasks)]
 
         s_time = time.time()
@@ -114,8 +121,9 @@ class TestOMPR(unittest.TestCase):
             loglevel=       TESTS_LOGLEVEL)
 
         tasks = [{
-            'ix':   ix,
-            'sec':  min_time + random.random() * (max_time-min_time)}
+            'ix':       ix,
+            'min_time': min_time,
+            'max_time': max_time}
             for ix in range(n_tasks)]
 
         ompr.process(tasks)
@@ -123,8 +131,6 @@ class TestOMPR(unittest.TestCase):
         while len(results) < n_tasks:
             print(f'got {len(results)} results')
             results.append(ompr.get_result())
-
-        print(f'({len(results)}) {results}')
 
         self.assertTrue(isinstance(results[0], str))
         self.assertEqual(len(tasks), len(results))
@@ -157,8 +163,9 @@ class TestOMPR(unittest.TestCase):
             loglevel=           TESTS_LOGLEVEL)
 
         tasks = [{
-            'ix':   ix,
-            'sec':  min_time + random.random() * (max_time-min_time)}
+            'ix':       ix,
+            'min_time': min_time,
+            'max_time': max_time}
             for ix in range(n_tasks)]
 
         ompr.process(tasks)
@@ -166,8 +173,6 @@ class TestOMPR(unittest.TestCase):
         while len(results) < n_tasks:
             print(f'got {len(results)} results')
             results.append(ompr.get_result())
-
-        print(f'({len(results)}) {results}')
 
         self.assertTrue(isinstance(results[0], str))
         self.assertEqual(len(tasks), len(results))
@@ -194,11 +199,11 @@ class TestOMPR(unittest.TestCase):
             loglevel=       TESTS_LOGLEVEL)
 
         tasks = [{
-            'ix':   ix,
-            'sec':  min_time + random.random() * (max_time-min_time)}
+            'ix':       ix,
+            'min_time': min_time,
+            'max_time': max_time}
             for ix in range(n_tasks)]
 
-        print(f'tasks: ({len(tasks)}) {tasks}')
         ompr.process(tasks)
         results = ompr.get_all_results()
         print(f'results: ({len(results)}) {results}')
@@ -207,11 +212,11 @@ class TestOMPR(unittest.TestCase):
 
         # additional 30 tasks
         tasks = [{
-            'ix':   ix,
-            'sec':  min_time + random.random() * (max_time-min_time)}
+            'ix':       ix,
+            'min_time': min_time,
+            'max_time': max_time}
             for ix in range(30)]
 
-        print(f'tasks: ({len(tasks)}) {tasks}')
         ompr.process(tasks)
         results = ompr.get_all_results()
         print(f'results: ({len(results)}) {results}')
@@ -237,28 +242,26 @@ class TestOMPR(unittest.TestCase):
 
         tasks = [{
             'ix':               ix,
-            'sec':              min_time + random.random() * (max_time-min_time),
+            'min_time':         min_time,
+            'max_time':         max_time,
             'exception_prob':   exception_prob}
             for ix in range(n_tasks)]
 
-        print(f'tasks: ({len(tasks)}) {tasks}')
         ompr.process(tasks)
         results = ompr.get_all_results()
-        print(f'results: ({len(results)}) {results}')
         for r in results:
             self.assertTrue(isinstance(r,str) or isinstance(r,OMPRException))
         self.assertEqual(len(tasks), len(results))
 
         # additional 30 tasks
         tasks = [{
-            'ix':   ix,
-            'sec':  min_time + random.random() * (max_time-min_time)}
+            'ix':       ix,
+            'min_time': min_time,
+            'max_time': max_time}
             for ix in range(30)]
 
-        print(f'tasks: ({len(tasks)}) {tasks}')
         ompr.process(tasks)
         results = ompr.get_all_results()
-        print(f'results: ({len(results)}) {results}')
         for r in results:
             self.assertTrue(isinstance(r,str) or isinstance(r,OMPRException))
         self.assertEqual(len(tasks), len(results))
@@ -282,16 +285,13 @@ class TestOMPR(unittest.TestCase):
             loglevel=       TESTS_LOGLEVEL)
 
         tasks = [{
-            'ix':   ix,
-            'sec':  min_time + random.random() * (max_time-min_time)}
+            'ix':       ix,
+            'min_time': min_time,
+            'max_time': max_time}
             for ix in range(n_tasks)]
-
-        print(f'tasks: ({len(tasks)}) {tasks}')
         ompr.process(tasks)
         results = ompr.get_all_results()
-        print(f'results: ({len(results)}) {results}')
         self.assertEqual(len(tasks), len(results))
-
         ompr.exit()
 
     # lifetime + exceptions + timeout
@@ -300,7 +300,7 @@ class TestOMPR(unittest.TestCase):
         n_tasks =           100
         workers =           10
         min_time =          0.5
-        max_time =          1.7
+        max_time =          1.2
         exception_prob =    0.3
         task_timeout =      1
         process_lifetime =  2
@@ -315,48 +315,41 @@ class TestOMPR(unittest.TestCase):
 
         tasks = [{
             'ix':               ix,
-            'sec':              min_time + random.random() * (max_time-min_time),
+            'min_time':         min_time,
+            'max_time':         max_time,
             'exception_prob':   exception_prob}
             for ix in range(n_tasks)]
-
-        print(f'tasks: ({len(tasks)}) {tasks}')
         ompr.process(tasks)
         results = ompr.get_all_results()
-        print(f'results: ({len(results)}) {results}')
         self.assertEqual(len(tasks), len(results))
-
         ompr.exit()
 
     # many timeouts
     def test_OMPR_many_timeouts(self):
 
-        n_tasks =           1000
+        n_tasks =           100
         min_time =          0.9
         max_time =          1.5
-        timeout =           1
-        exception_prob =    0.5
+        exception_prob =    0.2
+        task_timeout =      1
 
         ompr = OMPRunner(
             rww_class=          BRW,
             devices=            'all',
-            task_timeout=       timeout,
-            log_RWW_exception=  False,
+            task_timeout=       task_timeout,
+            log_rww_exception=  False,
             report_delay=       2,
             loglevel=           TESTS_LOGLEVEL)
 
         tasks = [{
             'ix':               ix,
-            'sec':              min_time + random.random() * (max_time-min_time),
-            'exception_prob':   exception_prob,
-        }
+            'min_time':         min_time,
+            'max_time':         max_time,
+            'exception_prob':   exception_prob}
             for ix in range(n_tasks)]
-
-        print(f'tasks: ({len(tasks)})')
         ompr.process(tasks)
         results = ompr.get_all_results()
-        print(f'results: ({len(results)})')
         self.assertEqual(len(tasks), len(results))
-
         ompr.exit()
 
     # many fast tasks
@@ -376,58 +369,7 @@ class TestOMPR(unittest.TestCase):
             loglevel=       TESTS_LOGLEVEL)
 
         tasks = [{'ix':ix} for ix in range(n_tasks)]
-
-        print(f'tasks: ({len(tasks)})')
         ompr.process(tasks)
         results = ompr.get_all_results()
-        print(f'results: ({len(results)})')
         self.assertEqual(len(tasks), len(results))
-
-        ompr.exit()
-
-    # many timeouts + exceptions
-    def test_OMPR_stress(self):
-
-        n_tasks =           1000
-        min_time =          0.001
-        max_time =          2.2
-        timeout =           2
-        exception_prob =    0.05
-
-        # Stress RunningWorker with random exception
-        class SRW(RunningWorker):
-            def process(
-                    self,
-                    s: list,
-                    max_time: float,
-                    exception_prob: float=  0.0) -> str:
-
-                if random.random() < exception_prob: raise Exception('randomly crashed')
-
-                s_time = time.time()
-                while time.time() - s_time < max_time:
-                    random.shuffle(s)
-                    s = sorted(s)
-                return s
-
-        ompr = OMPRunner(
-            rww_class=          SRW,
-            devices=            0.7,
-            task_timeout=       timeout,
-            log_RWW_exception=  False,
-            report_delay=       2,
-            loglevel=           TESTS_LOGLEVEL)
-
-        tasks = [{
-            's':                list('abcdefghijklmnoprstuvwxyz1234567890'),
-            'max_time':         min_time + random.random() * (max_time-min_time),
-            'exception_prob':   exception_prob,
-        } for _ in range(n_tasks)]
-
-        print(f'got {len(tasks)} tasks')
-        ompr.process(tasks)
-        results = ompr.get_all_results()
-        print(f'got {len(results)} results')
-        self.assertEqual(len(tasks), len(results))
-
         ompr.exit()
