@@ -119,6 +119,7 @@ class OMPRunner:
                 self.logger.info(f'> {self.name} finished process loop, n_task_ok:{rwo.n_task_ok}, n_task_crashed:{rwo.n_task_crashed}')
 
         POISON_MSG = QMessage(type='poison', data=None)
+        STOP_MSG = QMessage(type='stop', data=None)
 
         def __init__(
                 self,
@@ -161,15 +162,17 @@ class OMPRunner:
             self.raise_rww_exception = raise_rww_exception
             self.report_delay = report_delay
 
-            self.rwwD: Dict[str,Dict] = {}  # {rww.name: {'rww_init_kwargs':{}, 'rww':RWW}}
+            self.rwwD: Dict[str,Dict] = {}  # {rww.name: {rww_init_kwargs, rww, n_tasks}}
             for dix, dev in enumerate(devices):
                 kwD = {}
                 kwD.update(rww_init_kwargs)
                 if dev_param_name:
                     kwD[dev_param_name] = dev
                 self.rwwD[f'RWW-{dix}'] = {
-                    'rww_init_kwargs':  kwD,
-                    'rww':              None}
+                    'rww_init_kwargs':  kwD,    # kwargs of RWW __init__
+                    'rww':              None,   # RWW object
+                    'n_tasks':          0,      # number of tasks processed by each RWW since start / restart
+                }
 
         def _build_and_start_RWW(self, rww_name:str):
             """ builds and starts single RWW """
@@ -183,6 +186,7 @@ class OMPRunner:
                 raise_Exception=    self.raise_rww_exception,
                 logger=             get_child(logger=self.logger, name=rww_name, change_level=10))
             self.rwwD[rww_name]['rww'].start()
+            self.rwwD[rww_name]['n_tasks'] = 0
             self.logger.debug(f'> {self.name} built and started {rww_name} ..')
 
         def build_and_start_allRWW(self):
@@ -204,7 +208,14 @@ class OMPRunner:
             self.rwwD[name]['rww'].ique.put(QMessage('break'))
             self.rwwD[name]['rww'].join()
             self.rwwD[name]['rww'] = None
-            self.logger.debug(f'> {self.name} stopped and joined {name}..')
+            self.logger.debug(f'> {self.name} stopped and joined {name} ..')
+
+        def _stop_and_join_allRWW(self):
+            self.logger.info(f'> {self.name} is going to stop and join {len(self.rwwD)} RunningWorkers ..')
+            for name in self.rwwD:
+                if self.rwwD[name]['rww'] is not None:
+                    self._stop_and_join_RWW(name)
+            self.logger.info(f'> {self.name} stopped and joined all RunningWorkers')
 
         def _kill_RWW(self, name:str):
             """ kills single RWW """
@@ -218,7 +229,7 @@ class OMPRunner:
 
             self.rwwD[name]['rww'].join()
             self.rwwD[name]['rww'] = None
-            self.logger.debug(f'> {self.name} killed and joined {name}..')
+            self.logger.debug(f'> {self.name} killed and joined {name} ..')
 
         def _kill_allRWW(self):
             self.logger.info(f'> {self.name} is going to kill and join {len(self.rwwD)} RunningWorkers ..')
@@ -268,7 +279,6 @@ class OMPRunner:
 
             next_task_ix = 0                                # next task index (index of task that will be processed next)
             task_result_ix = 0                              # index of task result that should be put to self.results_que now
-            rww_ntasks = {k: 0 for k in self.rwwD.keys()}   # number of tasks processed by each RWW since restart
 
             iv_time = time.time()                           # interval report time
             s_time = iv_time                                # start time
@@ -282,13 +292,13 @@ class OMPRunner:
             resultsD: Dict[int, Any] = {}                   # results dict {task_ix: result(data)} for ordered tasks
             while True:
 
-                break_ompr = False # break by poison
+                break_ompr = False # to break by poison
 
                 ### eventually start some tasks
 
                 msg_ique = self.ique.get(block=False) # try to get message from the ique
 
-                # block when no message, no tasks present and all RWW waiting
+                # block when: no message + no tasks present + all RWW waiting
                 if not msg_ique and not tasks_que and len(resources) == len(self.rwwD):
                     msg_ique = self.ique.get(block=True)
 
@@ -298,7 +308,7 @@ class OMPRunner:
                     # process ique message
                     if msg_ique:
 
-                        if msg_ique.type not in ['tasks','poison']:
+                        if msg_ique.type not in ['tasks','poison','stop']:
                             nfo = f'{self.name} received unknown message type: \'{msg_ique.type}\''
                             self.logger.error(nfo)
                             raise OMPRException(nfo)
@@ -310,10 +320,15 @@ class OMPRunner:
                                 next_task_ix += 1
 
                         if msg_ique.type == 'poison':
-                            # all RWW have to be killed here, from the loop
+                            # all RWW have to be killed here
                             # we want to kill them because it is quicker than waiting for them till finish tasks
                             # - we do not need their results anymore
                             self._kill_allRWW()
+                            break_ompr = True
+
+                        if msg_ique.type == 'stop':
+                            # all RWW have to be stopped here
+                            self._stop_and_join_allRWW()
                             break_ompr = True
 
                     else:
@@ -327,7 +342,7 @@ class OMPRunner:
                 if break_ompr:
                     break
 
-                ### eventually put resources into work
+                ### eventually put resources + tasks into work
 
                 while resources and tasks_que:
                     self.logger.debug(f'> free resources: {len(resources)}, tasks_que len: {len(tasks_que)}, ique.qsize: {self.ique.qsize}')
@@ -335,11 +350,10 @@ class OMPRunner:
                     rww_name = resources.pop(0) # take first free resource
 
                     # eventually restart RWW (lifetime limit)
-                    if self.rww_lifetime and rww_ntasks[rww_name] >= self.rww_lifetime:
-                        self.logger.debug(f'> restarting RWW: {rww_name} because of lifetime condition..')
+                    if self.rww_lifetime and self.rwwD[rww_name]['n_tasks'] >= self.rww_lifetime:
+                        self.logger.debug(f'> restarting RWW: {rww_name} because of lifetime condition ..')
                         self._kill_RWW(rww_name)
                         self._build_and_start_RWW(rww_name)
-                        rww_ntasks[rww_name] = 0
 
                     # get first task, prepare and put message for RWW
                     task_ix, task = tasks_que.popleft()
@@ -357,6 +371,7 @@ class OMPRunner:
 
                 msg_rww = self.que_RWW.get(block=False)
 
+                # TODO: it looks not ok to block InternalProcessor here ..
                 # wait for one result when no possibility to start processing another task
                 if not msg_rww and (resources and (tasks_que or self.ique.qsize)):
                     msg_rww = self.que_RWW.get(block=True)
@@ -376,9 +391,16 @@ class OMPRunner:
                         self.logger.debug(f'> {self.name} got message from {rww_name} for task {task_ix}')
 
                         _send_result = True
+
                         if type(result) is OMPRException:
+
                             if self.log_rww_exception:
                                 self.logger.warning(f'> {self.name} got exception message from {rww_name} for task #{task_ix}: {result}')
+
+                            self.logger.debug(f'> restarting RWW:{rww_name} (crashed task:{task_ix}) ..')
+                            self._kill_RWW(rww_name)
+                            self._build_and_start_RWW(rww_name)
+
                             if self.rerun_crashed:
                                 tasks_que.appendleft((task_ix, task))
                                 _send_result = False
@@ -392,7 +414,8 @@ class OMPRunner:
                             else:
                                 self.oque.put(res_msg)
 
-                            rww_ntasks[rww_name] += 1
+                            if type(result) is not OMPRException:
+                                self.rwwD[rww_name]['n_tasks'] += 1
                             n_tasks_processed += 1
                             iv_n_tasks += 1
 
@@ -429,9 +452,9 @@ class OMPRunner:
                     iv_n_tasks = 0
 
                     self.logger.debug(self._get_rww_info())
-                    self.logger.debug(f'rww_ntasks:')
-                    for rk in sorted(rww_ntasks.keys()):
-                        self.logger.debug(f'{rk:2}: {rww_ntasks[rk]}')
+                    self.logger.debug(f'RWW n_tasks:')
+                    for rk in sorted(self.rwwD.keys()):
+                        self.logger.debug(f'{rk:2}: {self.rwwD[rk]["n_tasks"]}')
 
         def after_exception_handle_run(self):
             self._kill_allRWW()
@@ -441,18 +464,18 @@ class OMPRunner:
         def num_RWW(self) -> int:
             return len(self.rwwD)
 
-        def exit(self) -> None:
-            """ method to call out of the process (to exit it) """
+        def exit(self, kill:bool=True) -> None:
+            """ method to call out of the process to exit InternalProcessor """
 
             if self.alive:
-                self.ique.put(self.POISON_MSG)
+                self.ique.put(self.POISON_MSG if kill else self.STOP_MSG)
 
+            if kill:
+                # flush the oque
                 while self.alive:
-                    # flush the oque
                     while True:
                         if self.oque.get(block=False) is None:
                             break
-                    self.join(timeout=0.0001)
 
     def __init__(
             self,
@@ -588,7 +611,10 @@ class OMPRunner:
         return self._internal_processor.num_RWW
 
     def exit(self):
+        kill = False
         if self._n_results_returned != self._n_tasks_received:
+            kill = True
             self.logger.warning(f'{self.__class__.__name__} exits while not all results were returned to user!')
-        self._internal_processor.exit()
+        self._internal_processor.exit(kill=kill)
+        self._internal_processor.join()
         self.logger.info(f'> internal processor stopped, {self.__class__.__name__} exits.')
