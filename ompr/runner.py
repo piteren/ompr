@@ -186,7 +186,7 @@ class OMPRunner:
             self.logger.debug(f'> {self.name} built and started {rww_name} ..')
 
         def build_and_start_allRWW(self):
-            self.logger.info(f'> {self.name} is going to build and start {len(self.rwwD)} RunningWorkers..')
+            self.logger.info(f'> {self.name} is going to build and start {len(self.rwwD)} RunningWorkers ..')
             n_started = 0
             for id in self.rwwD:
                 if self.rwwD[id]['rww'] is None:
@@ -221,7 +221,7 @@ class OMPRunner:
             self.logger.debug(f'> {self.name} killed and joined {name}..')
 
         def _kill_allRWW(self):
-            self.logger.info(f'> {self.name} is going to kill and join {len(self.rwwD)} RunningWorkers..')
+            self.logger.info(f'> {self.name} is going to kill and join {len(self.rwwD)} RunningWorkers ..')
             for name in self.rwwD:
                 if self.rwwD[name]['rww'] is not None:
                     self._kill_RWW(name)
@@ -231,7 +231,7 @@ class OMPRunner:
             """ holds execution (syncs) till all RWW finished init """
             for name in self.rwwD:
                 if self.rwwD[name]['rww'] is None:
-                    self.logger.warning('some RWW are not started, cannot hold!!!')
+                    self.logger.warning('some RWW are not started, cannot hold!')
                     return
             for name in self.rwwD:
                 self.rwwD[name]['rww'].ique.put(QMessage(type='hold_check', data=None))
@@ -423,7 +423,7 @@ class OMPRunner:
                         progress = n_tasks_processed / next_task_ix
                         self.logger.info(f'> progress: {progress * 100:4.1f}% ({speed_now_str}) que:{n_tasks_que}/{next_task_ix}, EST:{est:.1f}min')
                     else:
-                        self.logger.info(f'> processing speed unknown yet..')
+                        self.logger.info(f'> processing speed unknown yet ..')
 
                     iv_time = time.time()
                     iv_n_tasks = 0
