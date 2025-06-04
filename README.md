@@ -6,8 +6,9 @@
 **OMPR** is a simple tool for processing tasks with object-based subprocesses.
 
 **OMPR** may be used for parallel processing of any type of tasks.
-Usually, a task means a function with a given set of parameters. This function needs to be run (processed) to get
-a return value - result. There are also scenarios when for processing a given task a (big) object is needed.
+Usually, a task is processed by a function with a given set of parameters.
+This function needs to be run to return a value - result.
+There are also scenarios, where for to process a given task a (big) object is needed.
 The problem arises when the time taken by object `__init__` is much higher than the time taken by pure processing.
 An example of such a task is sentence parsing using a SpaCy model.
 **OMPR** allows initializing such an object once in each subprocess while forking.
