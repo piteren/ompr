@@ -540,10 +540,8 @@ class OMPRunner:
         self._internal_processor.start()
 
     def process(self, tasks: dict or List[dict]):
-        """ takes tasks for processing,
-        starts processing,
-        does not return anything,
-        (not blocking) """
+        """ takes tasks for processing, (not blocking)
+        starts processing, does not return anything """
         if type(tasks) is dict: tasks = [tasks]
         self._tasks_que.put(QMessage(type='tasks', data=tasks))
         self._n_tasks_received += len(tasks)
