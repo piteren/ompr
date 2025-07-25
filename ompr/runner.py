@@ -92,10 +92,14 @@ class OMPRunner:
                                 result = rwo.process(**task)
                                 rwo.n_task_ok += 1
                             except Exception as e:
+                                if self.raise_Exception:
+                                    raise e
                                 result = OMPRException(f'exception while processing task #{task_ix}: {e}', task=task)
                                 rwo.n_task_crashed += 1
 
                         except Exception as e:
+                            if self.raise_Exception:
+                                raise e
                             result = OMPRException(f'exception while processing task #{task_ix}: {e}', task=task)
                             rwo.n_task_crashed += 1
 
