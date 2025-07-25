@@ -134,7 +134,10 @@ class OMPRunner:
                 **kwargs):
 
             self.rww_class = rww_class
-            super().__init__(name=f'InternalProcessor_for_{self.rww_class.__name__}', **kwargs)
+            super().__init__(
+                name=               f'InternalProcessor_for_{self.rww_class.__name__}',
+                raise_Exception=    raise_rww_exception,
+                **kwargs)
 
             self.que_sync = Que() # this que is (optionally) used only to sync init of RWWs
 
@@ -481,7 +484,7 @@ class OMPRunner:
         :param log_rww_exception:
             RWW exception is put to the logging with a WARNING
         :param raise_rww_exception:
-            OMPR manages exceptions raised by RWW when processing the task,
+            OMPR (in fact InternalProcessor) manages exceptions raised by RWW when processing the task,
             RWW are rebuild, crashed tasks are re-run,
             True forces RWW to raise exceptions (all but KeyboardInterrupt)
             this option is useful for debugging
