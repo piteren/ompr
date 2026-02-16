@@ -258,7 +258,7 @@ class OMPRunner:
             rww_mem = []
             try:
                 num_alive = sum([1 for n in self.rwwD if self.rwwD[n]['rww'] is not None and self.rwwD[n]['rww'].alive])
-                num_closed = sum([1 for n in self.rwwD if self.rwwD[n]['rww'] is not None and self.rwwD[n]['rww'].closed])
+                num_closed = sum([1 for n in self.rwwD if self.rwwD[n]['rww'] is None or self.rwwD[n]['rww'].closed])
                 alive_info = f'{num_all}= alive:{num_alive} closed:{num_closed}'
                 rww_mem = [self.rwwD[n]['rww'].mem_usage for n in self.rwwD if self.rwwD[n]['rww'] is not None and self.rwwD[n]['rww'].alive]
                 rww_mem.sort(reverse=True)
