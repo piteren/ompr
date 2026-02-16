@@ -222,15 +222,7 @@ class OMPRunner:
 
         def _kill_RWW(self, name:str):
             """ kills single RWW """
-
-            self.rwwD[name]['rww'].kill()
-
-            # flush the RWW ique
-            while True:
-                if not self.rwwD[name]['rww'].ique.get(block=False): 
-                    break
-
-            self.rwwD[name]['rww'].join()
+            self.rwwD[name]['rww'].kill_and_close()
             self.rwwD[name]['rww'] = None
             self.logger.debug(f'> {self.name} killed and joined {name} ..')
 
@@ -265,7 +257,7 @@ class OMPRunner:
             num_closed = sum([1 for n in self.rwwD if self.rwwD[n]['rww'] is not None and self.rwwD[n]['rww'].closed])
             alive_info = f'{num_all}= alive:{num_alive} closed:{num_closed}'
 
-            rww_mem = [int(psutil.Process(self.rwwD[name]['rww'].pid).memory_info().rss / 1024 ** 2) for name in self.rwwD if self.rwwD[name]['rww'].alive]
+            rww_mem = [self.rwwD[name]['rww'].mem_usage for name in self.rwwD if self.rwwD[name]['rww'].alive]
             rww_mem.sort(reverse=True)
 
             tot_mem = ip_mem + sum(rww_mem)
@@ -382,7 +374,7 @@ class OMPRunner:
                 # eventually put resources + tasks into work
                 while resources and tasks_que:
 
-                    self.logger.debug(f'> free resources: {len(resources)}, tasks_que len: {len(tasks_que)}, ique.qsize: {self.ique.qsize}')
+                    self.logger.debug(f'> free resources: {len(resources)}, tasks_que len: {len(tasks_que)}, ique.size: {self.ique.size}')
 
                     rww_name = resources.pop(0) # take first free resource
 
@@ -440,17 +432,10 @@ class OMPRunner:
             return len(self.rwwD)
 
         def exit(self, kill:bool=True) -> None:
-            """ method to call out of the process to exit InternalProcessor """
-
-            if self.alive:
-                self.ique.put(self.POISON_MSG if kill else self.STOP_MSG)
-
-            if kill:
-                # flush the oque
-                while self.alive:
-                    while True:
-                        if self.oque.get(block=False) is None:
-                            break
+            """ exit InternalProcessor """
+            self.ique.put(self.POISON_MSG if kill else self.STOP_MSG)
+            self.join()
+            self.close()
 
     def __init__(
             self,
@@ -589,5 +574,4 @@ class OMPRunner:
             kill = True
             self.logger.warning(f'{self.__class__.__name__} exits while not all results were returned to user!')
         self._internal_processor.exit(kill=kill)
-        self._internal_processor.join()
         self.logger.info(f'> internal processor stopped, {self.__class__.__name__} exits.')

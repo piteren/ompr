@@ -355,12 +355,12 @@ class TestOMPR(unittest.TestCase):
     # many fast tasks
     def test_OMPR_speed(self):
 
-        # Fast RunningWorker
+        # fast RunningWorker
         class FRW(RunningWorker):
             def process(self, ix: int) -> int:
                 return ix
 
-        n_tasks =           100000
+        n_tasks = 100000
 
         ompr = OMPRunner(
             rww_class=      FRW,
