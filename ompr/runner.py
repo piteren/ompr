@@ -531,6 +531,8 @@ class OMPRunner:
             logger=                 self.logger)
         self._internal_processor.start()
 
+        self._exited = False
+
     def process(self, tasks: dict or List[dict]):
         """ takes tasks for processing, (not blocking)
         starts processing, does not return anything """
@@ -569,9 +571,11 @@ class OMPRunner:
         return self._internal_processor.num_RWW
 
     def exit(self):
-        kill = False
-        if self._n_results_returned != self._n_tasks_received:
-            kill = True
-            self.logger.warning(f'{self.__class__.__name__} exits while not all results were returned to user!')
-        self._internal_processor.exit(kill=kill)
-        self.logger.info(f'> internal processor stopped, {self.__class__.__name__} exits.')
+        if not self._exited:
+            kill = False
+            if self._n_results_returned != self._n_tasks_received:
+                kill = True
+                self.logger.warning(f'{self.__class__.__name__} exits while not all results were returned to user!')
+            self._internal_processor.exit(kill=kill)
+            self.logger.info(f'> internal processor stopped, {self.__class__.__name__} exits.')
+            self._exited = True
