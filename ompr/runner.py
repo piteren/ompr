@@ -253,12 +253,17 @@ class OMPRunner:
             used = vm.used / 1024 ** 3
 
             num_all = len(self.rwwD)
-            num_alive = sum([1 for n in self.rwwD if self.rwwD[n]['rww'] is not None and self.rwwD[n]['rww'].alive])
-            num_closed = sum([1 for n in self.rwwD if self.rwwD[n]['rww'] is not None and self.rwwD[n]['rww'].closed])
-            alive_info = f'{num_all}= alive:{num_alive} closed:{num_closed}'
 
-            rww_mem = [self.rwwD[name]['rww'].mem_usage for name in self.rwwD if self.rwwD[name]['rww'].alive]
-            rww_mem.sort(reverse=True)
+            alive_info = ''
+            rww_mem = []
+            try:
+                num_alive = sum([1 for n in self.rwwD if self.rwwD[n]['rww'] is not None and self.rwwD[n]['rww'].alive])
+                num_closed = sum([1 for n in self.rwwD if self.rwwD[n]['rww'] is not None and self.rwwD[n]['rww'].closed])
+                alive_info = f'{num_all}= alive:{num_alive} closed:{num_closed}'
+                rww_mem = [self.rwwD[n]['rww'].mem_usage for n in self.rwwD if self.rwwD[n]['rww'] is not None and self.rwwD[n]['rww'].alive]
+                rww_mem.sort(reverse=True)
+            except Exception:
+                pass
 
             tot_mem = ip_mem + sum(rww_mem)
             s = f'# {self.name} mem: {ip_mem}MB, omp+sp/used: {tot_mem/1024:.1f}/{used:.1f}GB ({int(vm.percent)}%VM) '
