@@ -535,7 +535,7 @@ class OMPRunner:
             rerun_crashed=          rerun_crashed,
             log_rww_exception=      log_rww_exception,
             raise_rww_exception=    raise_rww_exception,
-            report_delay=           report_delay,
+            report_delay=           report_delay, # type: ignore
             logger=                 self.logger)
         self._internal_processor.start()
 
