@@ -6,8 +6,8 @@ from ompr.runner import OMPRunner, RunningWorker, OMPRException
 TESTS_LOGLEVEL = 20
 
 
-# basic RunningWorker with random exception
 class BRW(RunningWorker):
+    """basic RunningWorker with random exception"""
     def process(
             self,
             ix: int,
@@ -26,10 +26,10 @@ class BRW(RunningWorker):
 
 def test_OMPR_base():
 
-    n_tasks =   100
+    n_tasks =   50
     workers =   10
-    min_time =  1.1
-    max_time =  1.9
+    min_time =  0.2
+    max_time =  0.4
 
     expected_run_time = (max_time + min_time) / 2 * n_tasks / workers
 
@@ -66,10 +66,10 @@ def test_OMPR_base():
 
 def test_OMPR_put_one_by_one():
 
-    n_tasks =   100
+    n_tasks =   50
     workers =   10
-    min_time =  1.1
-    max_time =  1.9
+    min_time =  0.2
+    max_time =  0.4
 
     expected_run_time = (max_time + min_time) / 2 * n_tasks / workers
 
@@ -105,13 +105,13 @@ def test_OMPR_put_one_by_one():
     ompr.exit()
 
 
-# results received one by one
 def test_OMPR_get_one_by_one():
+    """results received one by one"""
 
     n_tasks =   50
     workers =   10
-    min_time =  0.5
-    max_time =  1.7
+    min_time =  0.2
+    max_time =  0.4
 
     ompr = OMPRunner(
         rww_class=      BRW,
@@ -147,13 +147,13 @@ def test_OMPR_get_one_by_one():
     ompr.exit()
 
 
-# not sorted results
 def test_OMPR_one_by_one_not_sorted():
+    """not sorted results"""
 
     n_tasks =   50
     workers =   10
-    min_time =  0.5
-    max_time =  1.7
+    min_time =  0.2
+    max_time =  0.4
 
     ompr = OMPRunner(
         rww_class=          BRW,
@@ -183,13 +183,12 @@ def test_OMPR_one_by_one_not_sorted():
     ompr.exit()
 
 
-# process lifetime
 def test_OMPR_lifetime():
 
-    n_tasks =           100
+    n_tasks =           50
     workers =           10
-    min_time =          0.5
-    max_time =          1.7
+    min_time =          0.2
+    max_time =          0.4
     process_lifetime =  2
 
     ompr = OMPRunner(
@@ -227,14 +226,13 @@ def test_OMPR_lifetime():
     ompr.exit()
 
 
-# exceptions
 def test_OMPR_exceptions():
 
-    n_tasks =       100
+    n_tasks =       50
     workers =       10
-    min_time =      0.5
-    max_time =      1.7
-    exception_prob= 0.3
+    min_time =      0.2
+    max_time =      0.4
+    exception_prob= 0.5
 
     ompr = OMPRunner(
         rww_class=      BRW,
@@ -271,14 +269,13 @@ def test_OMPR_exceptions():
     ompr.exit()
 
 
-# task timeout
 def test_OMPR_timeout():
 
-    n_tasks =       100
+    n_tasks =       50
     workers =       10
-    min_time =      0.5
-    max_time =      1.7
-    task_timeout =  1
+    min_time =      0.2
+    max_time =      0.4
+    task_timeout =  0.3
 
     ompr = OMPRunner(
         rww_class=      BRW,
@@ -298,15 +295,15 @@ def test_OMPR_timeout():
     ompr.exit()
 
 
-# lifetime + exceptions + timeout
 def test_OMPR_all_together():
+    """lifetime + exceptions + timeout"""
 
-    n_tasks =           100
+    n_tasks =           50
     workers =           10
-    min_time =          0.5
-    max_time =          1.2
+    min_time =          0.2
+    max_time =          0.4
     exception_prob =    0.3
-    task_timeout =      1
+    task_timeout =      0.3
     process_lifetime =  2
 
     ompr = OMPRunner(
@@ -329,14 +326,13 @@ def test_OMPR_all_together():
     ompr.exit()
 
 
-# many timeouts
 def test_OMPR_many_timeouts():
 
-    n_tasks =           100
-    min_time =          0.9
-    max_time =          1.5
+    n_tasks =           50
+    min_time =          0.2
+    max_time =          0.4
     exception_prob =    0.2
-    task_timeout =      1
+    task_timeout =      0.3
 
     ompr = OMPRunner(
         rww_class=          BRW,
@@ -358,8 +354,8 @@ def test_OMPR_many_timeouts():
     ompr.exit()
 
 
-# many fast tasks
 def test_OMPR_speed():
+    """many short tasks"""
 
     # fast RunningWorker
     class FRW(RunningWorker):

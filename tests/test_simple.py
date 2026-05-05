@@ -7,7 +7,7 @@ from ompr.simple import simple_process
 def test_simple_process():
 
     def func(a:float, b:float) -> float:
-        time.sleep(1)
+        time.sleep(0.2)
         return a*b
 
     num_tasks = 20
@@ -19,5 +19,5 @@ def test_simple_process():
         function=       func,
         loglevel=       10,
         num_workers=    4)
-    print(len(res))
+    print(f"got results: {len(res)}")
     assert len(res) == num_tasks

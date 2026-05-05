@@ -77,7 +77,7 @@ class RWW(ExProcess):
                 try:
 
                     if timeout is not None:
-                        signal.alarm(timeout)
+                        signal.setitimer(signal.ITIMER_REAL, timeout)
 
                     try:
                         result = rwo.process(**task)
@@ -98,7 +98,7 @@ class RWW(ExProcess):
 
                     # cancel the alarm
                     if timeout is not None:
-                        signal.alarm(0)
+                        signal.setitimer(signal.ITIMER_REAL, 0)
 
                     self.oque.put(QMessage(
                         type=   'RWW_exception' if type(result) is OMPRException else 'RWW_result',
@@ -128,7 +128,7 @@ class InternalProcessor(ExProcess):
             rww_init_sync: bool,
             devices: DevicesPypaq,
             ordered_results: bool,
-            task_timeout: int | None,
+            task_timeout: float | None,
             rerun_crashed: bool,
             log_rww_exception: bool,
             raise_rww_exception: bool,
@@ -453,7 +453,7 @@ class OMPRunner(Logged):
             rww_init_sync: bool = False,
             devices: DevicesPypaq = 'all',
             ordered_results: bool = True,
-            task_timeout: int | None = None,
+            task_timeout: float | None = None,
             rerun_crashed: bool = True,
             log_rww_exception: bool = True,
             raise_rww_exception: bool = False,
