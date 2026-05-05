@@ -494,9 +494,7 @@ class OMPRunner(Logged):
         if self.logger.level < 20:
             log_rww_exception = True
 
-        self.logger.info(f'*** OMPRunner *** inits, '
-                         f'pid: {os.getpid()}, '
-                         f'rww_class: {rww_class.__name__}')
+        self.logger.info(f'*** OMPRunner *** inits, pid: {os.getpid()}, rww_class: {rww_class.__name__}')
 
         self._tasks_que = Que()             # que of tasks to be processed
         self._results_que = Que()           # que of ready results
