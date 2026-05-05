@@ -1,20 +1,20 @@
-from typing import List, Dict, Callable, Any, Optional
+from collections.abc import Callable
+from typing import Any
 
 from ompr.runner import RunningWorker, OMPRunner
 
 
 def simple_process(
-        tasks: List[Dict],                  # tasks to process, list of task kwargs
-        function: Callable,                 # function that processes tasks
-        num_workers: int=               4,
-        rww_lifetime: Optional[int]=    None,
-        rww_init_sync: bool=            False,
-        rerun_crashed: bool=            True,
-        log_rww_exception: bool=        True,
-        logger=                         None,
-        loglevel=                       30,
+        tasks: list[dict],
+        function: Callable,
+        num_workers: int = 4,
+        rww_lifetime: int | None = None,
+        rww_init_sync: bool = False,
+        rerun_crashed: bool = True,
+        log_rww_exception: bool = True,
+        loglevel: int = 30,
         **kwargs,
-) -> List[Any]:
+) -> list[Any]:
     """ base (blocking) function to process tasks using OMPR on CPUs """
 
     class SimpleRW(RunningWorker):
@@ -29,7 +29,6 @@ def simple_process(
         rerun_crashed=          rerun_crashed,
         log_rww_exception=      log_rww_exception,
         raise_rww_exception=    False,
-        logger=                 logger,
         loglevel=               loglevel,
         **kwargs)
 

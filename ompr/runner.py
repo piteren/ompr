@@ -4,13 +4,12 @@ from inspect import getfullargspec
 import os
 import psutil
 from pypaq.lipytools.moving_average import MovAvg
-from pypaq.lipytools.pylogger import get_pylogger, get_child
-from pypaq.pms.base import get_params
+from pypaq.lipytools.pylogger import Logged
 from pypaq.mpython.mptools import QMessage, Que, ExProcess
 from pypaq.mpython.devices import DevicesPypaq, get_devices
 import signal
 import time
-from typing import Any, List, Dict, Optional, Type, Union
+from typing import Any
 
 from ompr.helpers import OMPRException
 
@@ -33,8 +32,8 @@ class RWW(ExProcess):
 
     def __init__(
             self,
-            rww_class: Type[RunningWorker],
-            rww_init_kwargs: Dict,
+            rww_class: type[RunningWorker],
+            rww_init_kwargs: dict,
             sync_que: Que,
             **kwargs):
         super().__init__(**kwargs)
@@ -123,17 +122,17 @@ class InternalProcessor(ExProcess):
 
     def __init__(
             self,
-            rww_class: Type[RunningWorker],
-            rww_init_kwargs: Optional[Dict],
-            rww_lifetime: Optional[int],
+            rww_class: type[RunningWorker],
+            rww_init_kwargs: dict | None,
+            rww_lifetime: int | None,
             rww_init_sync: bool,
             devices: DevicesPypaq,
             ordered_results: bool,
-            task_timeout: Optional[int],
+            task_timeout: int | None,
             rerun_crashed: bool,
             log_rww_exception: bool,
             raise_rww_exception: bool,
-            report_delay: Optional[int],
+            report_delay: int | None,
             **kwargs):
 
         self.rww_class = rww_class
@@ -163,7 +162,7 @@ class InternalProcessor(ExProcess):
         self.raise_rww_exception = raise_rww_exception
         self.report_delay = report_delay
 
-        self.rwwD: Dict[str,Dict] = {}  # {rww.name: {rww_init_kwargs, rww, n_tasks}}
+        self.rwwD: dict[str, dict] = {}  # {rww.name: {rww_init_kwargs, rww, n_tasks}}
         for dix, dev in enumerate(devices):
             kwD = {}
             kwD.update(rww_init_kwargs)
@@ -186,7 +185,7 @@ class InternalProcessor(ExProcess):
             oque=               self.ique,
             name=               rww_name,
             raise_Exception=    self.raise_rww_exception,
-            logger=             get_child(logger=self.logger, name=rww_name, change_level=10))
+            loglevel=           self.logger.level + 10)
         self.rwwD[rww_name]['rww'].start()
         self.rwwD[rww_name]['n_tasks'] = 0
         self.logger.debug(f'> {self.name} built and started {rww_name} ..')
@@ -294,7 +293,7 @@ class InternalProcessor(ExProcess):
 
         # results dict {task_ix: result(data)}
         # this dict is used for ordering results according to tasks order
-        resultsD: Dict[int, Any] = {}
+        resultsD: dict[int, Any] = {}
 
         break_ompr = False
         while not break_ompr:
@@ -442,29 +441,28 @@ class InternalProcessor(ExProcess):
         self.close()
 
 
-class OMPRunner:
+class OMPRunner(Logged):
     """ Object based Multi-Processing Runner """
 
     def __init__(
             self,
-            rww_class: Type[RunningWorker],
-            rww_init_kwargs: Optional[Dict]=    None,
-            rww_lifetime: Optional[int]=        None,
-            rww_init_sync: bool=                False,
-            devices: DevicesPypaq=              'all',
-            ordered_results: bool=              True,
-            task_timeout: Optional[int]=        None,
-            rerun_crashed: bool=                True,
-            log_rww_exception: bool=            True,
-            raise_rww_exception: bool=          False,
-            report_delay: Union[int,str]=       'auto',
-            logger=                             None,
-            loglevel=                           20):
+            rww_class: type[RunningWorker],
+            rww_init_kwargs: dict | None = None,
+            rww_lifetime: int | None = None,
+            rww_init_sync: bool = False,
+            devices: DevicesPypaq = 'all',
+            ordered_results: bool = True,
+            task_timeout: int | None = None,
+            rerun_crashed: bool = True,
+            log_rww_exception: bool = True,
+            raise_rww_exception: bool = False,
+            report_delay: int | str = 'auto',
+            loglevel: int = 20):
         """
         :param rww_class:
              RunningWorker class that will process() given tasks
         :param rww_init_kwargs:
-            RunningWorker __init__ kwargs, logger is managed by OMPRunner
+            RunningWorker __init__ kwargs
         :param rww_lifetime:
             RunningWorker lifetime,
             None or 0 - unlimited,
@@ -490,12 +488,7 @@ class OMPRunner:
             'auto' - uses loglevel,
             'none' - there is no speed report """
 
-        if not logger:
-            logger = get_pylogger(
-                name=       self.__class__.__name__,
-                folder=     None,
-                level=      loglevel)
-        self.logger = logger
+        self.logger = self.get_logger(level=loglevel)
 
         if self.logger.level < 20:
             log_rww_exception = True
@@ -517,11 +510,6 @@ class OMPRunner:
         if not rww_init_kwargs:
             rww_init_kwargs = {}
 
-        # eventually add self.logger to rww_init_kwargs
-        rww_class_params = get_params(rww_class.__init__)
-        if 'logger' in rww_class_params['with_defaults'] or 'logger' in rww_class_params['without_defaults']:
-            rww_init_kwargs['logger'] = self.logger
-
         self._internal_processor = InternalProcessor(
             ique=                   self._tasks_que,
             oque=                   self._results_que,
@@ -536,7 +524,7 @@ class OMPRunner:
             log_rww_exception=      log_rww_exception,
             raise_rww_exception=    raise_rww_exception,
             report_delay=           report_delay, # type: ignore
-            logger=                 self.logger)
+            loglevel=               loglevel)
         self._internal_processor.start()
 
         self._exited = False
@@ -548,7 +536,7 @@ class OMPRunner:
         self._tasks_que.put(QMessage(type='tasks', data=tasks))
         self._n_tasks_received += len(tasks)
 
-    def get_result(self, block=True) -> Optional[Any]:
+    def get_result(self, block=True) -> Any | None:
         """ returns single result, may block or not """
         if self._n_results_returned == self._n_tasks_received:
             self.logger.info(f'OMPRunner get_result() returns None since already returned all results (for all given tasks: n_results_returned == n_tasks_received)')
@@ -560,7 +548,7 @@ class OMPRunner:
                 return msg.data
             return None
 
-    def get_all_results(self, pop_ex_results=False) -> List[Any]:
+    def get_all_results(self, pop_ex_results=False) -> list[Any]:
         """ returns results of all tasks put up to NOW
         pop_ex_results for True removes OMPRException result from the returned list """
         results = []
@@ -570,7 +558,7 @@ class OMPRunner:
             results = [r for r in results if type(r) is not OMPRException]
         return results
 
-    def get_tasks_stats(self) -> Dict[str,int]:
+    def get_tasks_stats(self) -> dict[str, int]:
         return {
             'n_tasks_received':     self._n_tasks_received,
             'n_results_returned':   self._n_results_returned}
