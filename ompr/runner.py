@@ -143,7 +143,8 @@ class InternalProcessor(ExProcess):
 
         self.que_sync = Que() # this que is (optionally) used only to sync init of RWWs
 
-        if not rww_init_kwargs: rww_init_kwargs = {}
+        if not rww_init_kwargs:
+            rww_init_kwargs = {}
         self.rww_lifetime = rww_lifetime
         self.rww_init_sync = rww_init_sync
 
@@ -163,9 +164,9 @@ class InternalProcessor(ExProcess):
         self.report_delay = report_delay
 
         self.rwwD: dict[str, dict] = {}  # {rww.name: {rww_init_kwargs, rww, n_tasks}}
-        for dix, dev in enumerate(devices):
+        for dix, dev in enumerate(devices): # type: ignore
             kwD = {}
-            kwD.update(rww_init_kwargs)
+            kwD.update(rww_init_kwargs) # type: ignore
             if dev_param_name:
                 kwD[dev_param_name] = dev
             self.rwwD[f'RWW-{dix}'] = {
@@ -326,7 +327,7 @@ class InternalProcessor(ExProcess):
                 break_ompr = True
 
             if msg_ique.type == 'tasks':
-                for task in msg_ique.data:
+                for task in msg_ique.data: # type: ignore
                     tasks_que.append((next_task_ix, task))
                     next_task_ix += 1
 
@@ -503,7 +504,7 @@ class OMPRunner(Logged):
         self._n_results_returned: int = 0   # number of results returned to user till now
 
         if report_delay == 'none':
-            report_delay = None
+            report_delay = None # type: ignore
         if report_delay == 'auto':
             report_delay = 30 if loglevel>10 else 10
 
@@ -532,7 +533,8 @@ class OMPRunner(Logged):
     def process(self, tasks: dict | list[dict]):
         """ takes tasks for processing, (not blocking)
         starts processing, does not return anything """
-        if type(tasks) is dict: tasks = [tasks]
+        if type(tasks) is dict:
+            tasks = [tasks] # type: ignore
         self._tasks_que.put(QMessage(type='tasks', data=tasks))
         self._n_tasks_received += len(tasks)
 
