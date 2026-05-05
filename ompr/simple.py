@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from typing import Any
 
-from ompr.runner import RunningWorker, OMPRunner
+from ompr import RunningWorker, OMPRunner
 
 
 def simple_process(
@@ -12,7 +12,6 @@ def simple_process(
         rww_init_sync: bool = False,
         rerun_crashed: bool = True,
         log_rww_exception: bool = True,
-        loglevel: int = 30,
         **kwargs,
 ) -> list[Any]:
     """ base (blocking) function to process tasks using OMPR on CPUs """
@@ -29,7 +28,6 @@ def simple_process(
         rerun_crashed=          rerun_crashed,
         log_rww_exception=      log_rww_exception,
         raise_rww_exception=    False,
-        loglevel=               loglevel,
         **kwargs)
 
     ompr.process(tasks)
