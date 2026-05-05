@@ -17,7 +17,6 @@ def test_simple_process():
     res = simple_process(
         tasks=          tasks,
         function=       func,
-        loglevel=       10,
         num_workers=    4)
     print(f"got results: {len(res)}")
     assert len(res) == num_tasks

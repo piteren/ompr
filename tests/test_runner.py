@@ -3,8 +3,6 @@ import time
 
 from ompr.runner import OMPRunner, RunningWorker, OMPRException
 
-TESTS_LOGLEVEL = 20
-
 
 class BRW(RunningWorker):
     """basic RunningWorker with random exception"""
@@ -36,8 +34,7 @@ def test_OMPR_base():
     ompr = OMPRunner(
         rww_class=      BRW,
         devices=        [None] * workers,
-        report_delay=   2,
-        loglevel=       TESTS_LOGLEVEL)
+        report_delay=   2)
 
     tasks = [{
         'ix':       ix,
@@ -76,8 +73,7 @@ def test_OMPR_put_one_by_one():
     ompr = OMPRunner(
         rww_class=      BRW,
         devices=        [None] * workers,
-        report_delay=   2,
-        loglevel=       TESTS_LOGLEVEL)
+        report_delay=   2)
 
     tasks = [{
         'ix':       ix,
@@ -116,8 +112,7 @@ def test_OMPR_get_one_by_one():
     ompr = OMPRunner(
         rww_class=      BRW,
         devices=        [None] * workers,
-        report_delay=   2,
-        loglevel=       TESTS_LOGLEVEL)
+        report_delay=   2)
 
     tasks = [{
         'ix':       ix,
@@ -159,8 +154,7 @@ def test_OMPR_one_by_one_not_sorted():
         rww_class=          BRW,
         devices=            [None] * workers,
         ordered_results=    False,
-        report_delay=       2,
-        loglevel=           TESTS_LOGLEVEL)
+        report_delay=       2)
 
     tasks = [{
         'ix':       ix,
@@ -195,8 +189,7 @@ def test_OMPR_lifetime():
         rww_class=      BRW,
         rww_lifetime=   process_lifetime,
         devices=        [None] * workers,
-        report_delay=   2,
-        loglevel=       TESTS_LOGLEVEL)
+        report_delay=   2)
 
     tasks = [{
         'ix':       ix,
@@ -237,8 +230,7 @@ def test_OMPR_exceptions():
     ompr = OMPRunner(
         rww_class=      BRW,
         devices=        [None] * workers,
-        report_delay=   2,
-        loglevel=       TESTS_LOGLEVEL)
+        report_delay=   2)
 
     tasks = [{
         'ix':               ix,
@@ -281,8 +273,7 @@ def test_OMPR_timeout():
         rww_class=      BRW,
         devices=        [None] * workers,
         task_timeout=   task_timeout,
-        report_delay=   2,
-        loglevel=       TESTS_LOGLEVEL)
+        report_delay=   2)
 
     tasks = [{
         'ix':       ix,
@@ -311,8 +302,7 @@ def test_OMPR_all_together():
         rww_lifetime=   process_lifetime,
         devices=        [None] * workers,
         task_timeout=   task_timeout,
-        report_delay=   2,
-        loglevel=       TESTS_LOGLEVEL)
+        report_delay=   2)
 
     tasks = [{
         'ix':               ix,
@@ -339,8 +329,7 @@ def test_OMPR_many_timeouts():
         devices=            'all',
         task_timeout=       task_timeout,
         log_rww_exception=  False,
-        report_delay=       2,
-        loglevel=           TESTS_LOGLEVEL)
+        report_delay=       2)
 
     tasks = [{
         'ix':               ix,
@@ -367,8 +356,7 @@ def test_OMPR_speed():
     ompr = OMPRunner(
         rww_class=      FRW,
         devices=        'all',
-        report_delay=   2,
-        loglevel=       TESTS_LOGLEVEL)
+        report_delay=   2)
 
     tasks = [{'ix':ix} for ix in range(n_tasks)]
     ompr.process(tasks)
