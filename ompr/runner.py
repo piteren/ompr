@@ -39,7 +39,7 @@ class OMPRunner:
                 rerun_crashed: bool,
                 log_rww_exception: bool,
                 raise_rww_exception: bool,
-                report_delay: int | None,
+                report_interval: int | None,
                 **kwargs):
 
             self.rww_class = rww_class
@@ -68,7 +68,7 @@ class OMPRunner:
             self.rerun_crashed = rerun_crashed
             self.log_rww_exception = log_rww_exception
             self.raise_rww_exception = raise_rww_exception
-            self.report_delay = report_delay
+            self.report_interval = report_interval
 
             self.rwwD: dict[str, dict] = {}  # {rww.name: {rww_init_kwargs, rww, n_tasks}}
             for dix, dev in enumerate(devices): # type: ignore
@@ -307,12 +307,12 @@ class OMPRunner:
 
                     logger.debug(f'> put task {task_ix} for {rww_name}')
 
-                # report time
-                if self.report_delay is not None and time.time()-iv_time > self.report_delay:
+                c_time = time.time()
+                if self.report_interval is not None and c_time-iv_time > self.report_interval:
 
-                    iv_speed = iv_n_tasks/((time.time()-iv_time)/60)
+                    iv_speed = iv_n_tasks/((c_time-iv_time)/60)
                     speed_now = speed_mavg.upd(iv_speed)
-                    speed_global = n_tasks_processed/((time.time()-s_time)/60)
+                    speed_global = n_tasks_processed/((c_time-s_time)/60)
 
                     if speed_now != 0:
                         if speed_now > 10:    speed_now_str = f'{int(speed_now)} tasks/min'
@@ -322,11 +322,11 @@ class OMPRunner:
                         n_tasks_que = len(tasks_que)
                         est = n_tasks_que / speed_global
                         progress = n_tasks_processed / next_task_ix
-                        logger.debug(f'> progress: {progress * 100:4.1f}% ({speed_now_str}) que:{n_tasks_que}/{next_task_ix}, EST:{est:.1f}min')
+                        logger.info(f'> progress: {progress * 100:4.1f}% ({speed_now_str}) que:{n_tasks_que}/{next_task_ix}, EST:{est:.1f}min')
                     else:
-                        logger.debug(f'> processing speed unknown yet ..')
+                        logger.info(f'> processing speed unknown yet ..')
 
-                    iv_time = time.time()
+                    iv_time = c_time
                     iv_n_tasks = 0
 
                     logger.debug(self._get_rww_info())
@@ -360,7 +360,7 @@ class OMPRunner:
             rerun_crashed: bool = True,
             log_rww_exception: bool = True,
             raise_rww_exception: bool = False,
-            report_delay: int | str = 'auto',
+            report_interval: int | None = None,
             loglevel_worker: int = logging.WARNING,
             loglevel_subproc: int = logging.INFO,
     ):
@@ -389,10 +389,8 @@ class OMPRunner:
             RWW are rebuild, crashed tasks are re-run,
             True forces RWW to raise exceptions (all but KeyboardInterrupt)
             this option is useful for debugging
-        :param report_delay:
-            num sec between speed_report,
-            'auto' - uses logger level,
-            'none' - there is no speed report
+        :param report_interval:
+            num sec between speed_report
         :param loglevel_workers:
             logging level for ompr.workers logger
         :param loglevel_subproc:
@@ -411,11 +409,6 @@ class OMPRunner:
         self._n_tasks_received: int = 0     # number of tasks received from user till now
         self._n_results_returned: int = 0   # number of results returned to user till now
 
-        if report_delay == 'none':
-            report_delay = None # type: ignore
-        if report_delay == 'auto':
-            report_delay = 30 if logger.level > 10 else 10
-
         if not rww_init_kwargs:
             rww_init_kwargs = {}
 
@@ -432,7 +425,7 @@ class OMPRunner:
             rerun_crashed=          rerun_crashed,
             log_rww_exception=      log_rww_exception,
             raise_rww_exception=    raise_rww_exception,
-            report_delay=           report_delay, # type: ignore
+            report_interval=        report_interval,
         )
         self._internal_processor.start()
 
