@@ -322,7 +322,7 @@ class OMPRunner:
                         n_tasks_que = len(tasks_que)
                         est = n_tasks_que / speed_global
                         progress = n_tasks_processed / next_task_ix
-                        logger.info(f'> progress {progress * 100:3.1f}% ({speed_now_str}) in que:{n_tasks_que}/received:{next_task_ix}, EST:{est:.1f}min')
+                        logger.info(f'> progress {progress * 100:3.1f}% ({speed_now_str}) in que:{n_tasks_que}/received:{next_task_ix} EST:{est:.1f}min')
                     else:
                         logger.info(f'> processing speed unknown yet ..')
 
