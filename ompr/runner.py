@@ -56,7 +56,7 @@ class OMPRunner:
             self.rww_init_sync = rww_init_sync
 
             devices = get_devices(devices=devices)
-            logger.debug(f'> {self.name} resolved devices: {devices}')
+            logger.info(f'> {self.name} resolved devices ({len(devices)}): {devices}')
 
             dev_param_name = None
             pms = getfullargspec(self.rww_class).args
@@ -105,10 +105,10 @@ class OMPRunner:
                 if self.rwwD[id]['rww'] is None:
                     self._build_and_start_RWW(id)
                     n_started += 1
-            logger.debug(f'> {self.name} built and started {n_started} RunningWorkers')
+            logger.info(f'> {self.name} built and started {n_started} RunningWorkers')
             if self.rww_init_sync:
                 self._hold_till_allRWW_ready()
-                logger.debug(f'> {self.name} RunningWorkers init finished / synced')
+                logger.info(f'> {self.name} RunningWorkers init finished / synced')
 
         def _stop_and_join_RWW(self, name:str):
             """ ** not used currently by InternalProcessor
@@ -124,7 +124,7 @@ class OMPRunner:
             for name in self.rwwD:
                 if self.rwwD[name]['rww'] is not None:
                     self._stop_and_join_RWW(name)
-            logger.debug(f'> {self.name} stopped and joined all RunningWorkers')
+            logger.info(f'> {self.name} stopped and joined all RunningWorkers')
 
         def _kill_RWW(self, name:str):
             """ kills single RWW """
@@ -137,7 +137,7 @@ class OMPRunner:
             for name in self.rwwD:
                 if self.rwwD[name]['rww'] is not None:
                     self._kill_RWW(name)
-            logger.debug(f'> {self.name} killed and joined all RunningWorkers')
+            logger.info(f'> {self.name} killed and joined all RunningWorkers')
 
         def _hold_till_allRWW_ready(self):
             """ holds execution (syncs) till all RWW finished init """
@@ -442,7 +442,7 @@ class OMPRunner:
     def get_result(self, block=True) -> Any | None:
         """ returns single result, may block or not """
         if self._n_results_returned == self._n_tasks_received:
-            logger.info(f'OMPRunner get_result() returns None since already returned all results (for all given tasks: n_results_returned == n_tasks_received)')
+            logger.warning(f'OMPRunner get_result() returns None because already returned all results (for all given tasks: n_results_returned == n_tasks_received)')
             return None
         else:
             msg = self._results_que.get(block=block)
