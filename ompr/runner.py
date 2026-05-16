@@ -44,8 +44,8 @@ class OMPRunner:
 
             self.rww_class = rww_class
             super().__init__(
-                name=               f'InternalProcessor_for_{self.rww_class.__name__}',
-                raise_Exception=    raise_rww_exception,
+                name=f'InternalProcessor',
+                raise_Exception=raise_rww_exception,
                 **kwargs)
 
             self.que_sync = Que() # this que is (optionally) used only to sync init of RWWs
@@ -178,9 +178,8 @@ class OMPRunner:
             return s
 
         def exprocess_method(self):
-            """ main loop of InternalProcessor """
+            """ the main loop of InternalProcessor """
 
-            logger.debug(f'> {self.name} (pid: {os.getpid()}) starts loop with {len(self.rwwD)} RWW')
             self.build_and_start_allRWW()
 
             next_task_ix = 0                # next task index (index of task that will be processed next)
@@ -200,8 +199,12 @@ class OMPRunner:
             resources = list(self.rwwD.keys())
 
             # results dict {task_ix: result(data)}
-            # this dict is used for ordering results according to tasks order
+            # this dict is used for ordering results according to task order
             resultsD: dict[int, Any] = {}
+
+            if self.report_interval:
+                logger.info('>> OMPR progress will show # tasks '
+                            'L:left D:done Q:in-que R:que-received-total ..')
 
             break_ompr = False
             while not break_ompr:
@@ -308,7 +311,7 @@ class OMPRunner:
                     logger.debug(f'> put task {task_ix} for {rww_name}')
 
                 c_time = time.time()
-                if self.report_interval is not None and c_time-iv_time > self.report_interval:
+                if self.report_interval and c_time-iv_time > self.report_interval:
 
                     iv_speed = iv_n_tasks/((c_time-iv_time)/60)
                     speed_now = speed_mavg.upd(iv_speed)
@@ -320,9 +323,11 @@ class OMPRunner:
                             if speed_now > 1: speed_now_str = f'{speed_now:.1f} tasks/min'
                             else:             speed_now_str = f'{1 / speed_now:.1f} min/task'
                         n_tasks_que = len(tasks_que)
-                        est = n_tasks_que / speed_global
+                        n_tasks_left = next_task_ix - n_tasks_processed
+                        est = n_tasks_left / speed_global
                         progress = n_tasks_processed / next_task_ix
-                        logger.info(f'> progress {progress * 100:3.1f}% ({speed_now_str}) in que:{n_tasks_que}/received:{next_task_ix} EST:{est:.1f}min')
+                        logger.info(f'> progress {progress * 100:3.1f}% ({speed_now_str}) '
+                                    f'[L:{n_tasks_left} D:{n_tasks_processed} Q:{n_tasks_que} R:{next_task_ix}] EST:{est:.1f}min')
                     else:
                         logger.info(f'> processing speed unknown yet ..')
 
