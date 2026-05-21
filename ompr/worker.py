@@ -11,9 +11,11 @@ logger = logging.getLogger(__name__)
 
 
 class RunningWorker(ABC):
-    """ Worker for tasks,
-    processes task given with kwargs and returns result.
-    To be implemented by user """
+    """Worker, processes tasks given with kwargs to process() method.
+    To be implemented by the user.
+    RunningWorker initialized once may process many tasks, one after another.
+    With Init kwargs may be given parameters needed to properly initialize the worker
+    and its resources, like the objects living in the worker subprocess."""
 
     def __init__(self, **kwargs):
         self.n_task_ok = 0
