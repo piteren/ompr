@@ -4,7 +4,7 @@ import logging
 import os
 import psutil
 from pypaq.lipytools.moving_average import MovAvg
-from pypaq.mpython.mptools import QMessage, Que, ExProcess
+from pypaq.mpython.mptools import QMessage, Que, ExProcess, sys_res_nfo
 from pypaq.mpython.devices import DevicesPypaq, get_devices
 import time
 from typing import Any
@@ -326,8 +326,11 @@ class OMPRunner:
                         n_tasks_left = next_task_ix - n_tasks_processed
                         est = n_tasks_left / speed_global
                         progress = n_tasks_processed / next_task_ix
+                        s_nfo = sys_res_nfo()
                         logger.info(f'> progress {progress * 100:3.1f}% ({speed_now_str}) '
-                                    f'[L:{n_tasks_left} D:{n_tasks_processed} Q:{n_tasks_que} R:{next_task_ix}] EST:{est:.1f}min')
+                                    f'[L:{n_tasks_left} D:{n_tasks_processed} Q:{n_tasks_que} R:{next_task_ix}] '
+                                    f'CPU:{round(s_nfo['cpu_used_%'])}% MEM:{round(s_nfo['mem_used_%'])}% '
+                                    f'EST:{est:.1f}min')
                     else:
                         logger.info(f'> processing speed unknown yet ..')
 
