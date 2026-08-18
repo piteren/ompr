@@ -34,6 +34,7 @@ class FolderMP(Folder):
             exclude: str | Iterable[str] | None = None,
             devices: DevicesPypaq = 'all',
             rww_init_kwargs: dict | None = None,
+            raise_rww_exception: bool = False,
             report_interval: int = 60,
             **processing_func_kwargs,
     ):
@@ -64,6 +65,7 @@ class FolderMP(Folder):
             rww_class=rww_class,
             rww_init_kwargs=rww_init_kwargs if rww_init_kwargs else {},
             devices=devices,
+            raise_rww_exception=raise_rww_exception,
             report_interval=report_interval,
             loglevel_subproc=30,  # 30 -> WARN
         )
