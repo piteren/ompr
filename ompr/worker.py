@@ -17,12 +17,12 @@ class RunningWorker(ABC):
     With Init kwargs may be given parameters needed to properly initialize the worker
     and its resources, like the objects living in the worker subprocess."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         self.n_task_ok = 0
         self.n_task_crashed = 0
 
     @abstractmethod
-    def process(self, **kwargs) -> Any: pass
+    def process(self, *args, **kwargs) -> Any: pass
 
 
 class RWW(ExProcess):
