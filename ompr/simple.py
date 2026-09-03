@@ -7,29 +7,23 @@ from ompr import RunningWorker, OMPRunner
 def simple_process(
         tasks: list[dict],
         function: Callable,
-        num_workers: int = 4,
-        rww_lifetime: int | None = None,
-        rww_init_sync: bool = False,
-        rerun_crashed: bool = True,
-        log_rww_exception: bool = True,
         **kwargs,
 ) -> list[Any]:
-    """ base (blocking) function to process tasks using OMPR on CPUs """
+    """ base (blocking) function to process tasks using OMPR on CPUs
+    example:
+        results_list = simple_process(
+            tasks=[{'file':f} for f in files],
+            function=get_file_somthing,
+            report_interval=60,
+            loglevel_subproc=30,
+            devices=0.95)
+    """
 
     class SimpleRW(RunningWorker):
         def process(self, **kw) -> Any:
             return function(**kw)
 
-    ompr = OMPRunner(
-        rww_class=              SimpleRW,
-        rww_lifetime=           rww_lifetime,
-        rww_init_sync=          rww_init_sync,
-        devices=                [None] * num_workers,
-        rerun_crashed=          rerun_crashed,
-        log_rww_exception=      log_rww_exception,
-        raise_rww_exception=    False,
-        **kwargs)
-
+    ompr = OMPRunner(rww_class=SimpleRW, **kwargs)
     ompr.process(tasks)
     results = ompr.get_all_results()
     ompr.exit()
