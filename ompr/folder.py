@@ -40,10 +40,9 @@ class FolderMP(Folder):
     ):
         """processes all files in the Folder using MP"""
 
-        logger.info(f"processing files ({len(self._files)}) with MP:")
+        logger.info(f"processing (MP) files with {rww_class.__name__}")
         logger.info(f"> from {self._full_path}")
         logger.info(f"> to {path_processed}")
-        logger.info(f"> with {rww_class.__class__.__name__}")
         if add_ext:
             logger.info(f">> adding ext: {add_ext}")
         if include:
